@@ -414,8 +414,8 @@ export default function CategoryProductsPage() {
             {/* Products Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {filteredProducts.map((product) => {
-                const displayPrice = product.discount ? product.price * (1 - product.discount / 100) : product.price
-                const originalPrice = product.price
+                const displayPrice = product.price // Use price directly from API (already discounted)
+                const originalPrice = product.originalPrice || product.price // Show original if discount exists
 
                 return (
                   <Card
@@ -427,7 +427,7 @@ export default function CategoryProductsPage() {
                         <Image
                           src={
                             product.image ||
-                            `/placeholder.svg?height=300&width=300&query=${encodeURIComponent(product.name)}`
+                            `/placeholder.svg?height=300&width=300&query=${encodeURIComponent(product.name) || "/placeholder.svg"}`
                           }
                           alt={product.name}
                           fill
@@ -477,7 +477,7 @@ export default function CategoryProductsPage() {
                       <div className="flex items-baseline gap-2 mb-4">
                         <span className="text-lg font-bold text-gray-900">{displayPrice.toFixed(2)}</span>
                         <span className="text-xs text-gray-500">ج.م</span>
-                        {product.discount && product.discount > 0 && (
+                        {product.originalPrice && product.originalPrice > product.price && (
                           <span className="text-sm text-gray-400 line-through mr-auto">{originalPrice.toFixed(2)}</span>
                         )}
                       </div>

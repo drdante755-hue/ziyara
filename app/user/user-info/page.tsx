@@ -33,7 +33,7 @@ interface FormErrors {
 
 export default function UserInfoPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -46,77 +46,67 @@ export default function UserInfoPage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
 
-  // تحميل بيانات المستخدم من الجلسة والتحقق من إكمال الملف الشخصي
   useEffect(() => {
     const loadUserData = async () => {
       if (status === "authenticated" && session?.user) {
-        // التحقق من حالة المستخدم (emailVerified, profileCompleted)
         try {
           const response = await fetch("/api/user/check-profile")
           const data = await response.json()
-          
-          // ✅ Step 1: Check if email is verified
+
           if (data.success && !data.emailVerified) {
-            // Email not verified - redirect to verify-email
             router.push("/verify-email")
             return
           }
-          
-          // ✅ Step 2: Check if profile is already completed
+
           if (data.success && data.profileCompleted) {
-            // إذا أكمل المستخدم بياناته بالفعل، التوجيه إلى الصفحة الرئيسية
             router.push("/user/home")
             return
           }
-          
-          // تحميل البيانات من الجلسة
-          setFormData((prev) => ({
-            ...prev,
-            email: session.user.email || "",
+
+          setFormData({
+            email: session.user.email || data.user?.email || "",
             firstName: data.user?.firstName || session.user.name?.split(" ")[0] || "",
             lastName: data.user?.lastName || session.user.name?.split(" ").slice(1).join(" ") || "",
             phone: data.user?.phone || "",
             age: data.user?.age?.toString() || "",
             address: data.user?.address || "",
-          }))
+          })
         } catch (error) {
           console.error("Error loading user data:", error)
-          // في حالة الخطأ، استخدم بيانات الجلسة فقط
           setFormData((prev) => ({
             ...prev,
             email: session.user.email || "",
             firstName: session.user.name?.split(" ")[0] || "",
             lastName: session.user.name?.split(" ").slice(1).join(" ") || "",
           }))
+        } finally {
+          setIsInitialLoading(false)
         }
       } else if (status === "unauthenticated") {
-        // إذا لم يكن المستخدم مسجل دخول، التوجيه إلى صفحة تسجيل الدخول
         router.push("/login")
       }
     }
-    
+
     loadUserData()
   }, [session, status, router])
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    // Validate first name
     if (!formData.firstName.trim()) {
       newErrors.firstName = "الاسم الأول مطلوب"
     } else if (formData.firstName.trim().length < 2) {
       newErrors.firstName = "الاسم الأول يجب أن يكون أكثر من حرف واحد"
     }
 
-    // Validate last name
     if (!formData.lastName.trim()) {
       newErrors.lastName = "الاسم الأخير مطلوب"
     } else if (formData.lastName.trim().length < 2) {
       newErrors.lastName = "الاسم الأخير يجب أن يكون أكثر من حرف واحد"
     }
 
-    // Validate age
     const age = Number.parseInt(formData.age)
     if (!formData.age) {
       newErrors.age = "العمر مطلوب"
@@ -124,7 +114,6 @@ export default function UserInfoPage() {
       newErrors.age = "العمر يجب أن يكون بين 16 و 100 سنة"
     }
 
-    // Validate phone
     const phoneRegex = /^(\+20|0)?1[0125]\d{8}$/
     if (!formData.phone.trim()) {
       newErrors.phone = "رقم الهاتف مطلوب"
@@ -132,14 +121,12 @@ export default function UserInfoPage() {
       newErrors.phone = "رقم الهاتف غير صحيح (يجب أن يكون رقم مصري صحيح)"
     }
 
-    // Validate address
     if (!formData.address.trim()) {
       newErrors.address = "العنوان مطلوب"
     } else if (formData.address.trim().length < 10) {
       newErrors.address = "العنوان يجب أن يكون على الأقل 10 أحرف"
     }
 
-    // Validate email (optional but should be valid if provided)
     if (formData.email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(formData.email)) {
@@ -153,7 +140,6 @@ export default function UserInfoPage() {
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }))
     }
@@ -167,7 +153,6 @@ export default function UserInfoPage() {
     setIsLoading(true)
 
     try {
-      // إرسال البيانات إلى API
       const response = await fetch("/api/user/complete-profile", {
         method: "POST",
         headers: {
@@ -191,31 +176,44 @@ export default function UserInfoPage() {
         return
       }
 
-      // ✅ Update session by refreshing it
-      // This ensures the session reflects the new profileCompleted status
-      if (typeof window !== 'undefined') {
-        // Trigger session update
-        window.location.reload()
-      }
-
-      // حفظ في localStorage أيضاً للاستخدام المحلي
-      localStorage.setItem("userInfo", JSON.stringify(formData))
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          email: formData.email,
+          name: `${formData.firstName} ${formData.lastName}`,
+          profileCompleted: true,
+        },
+      })
 
       setIsSubmitted(true)
 
-      // ✅ Redirect to user home page after success
-      setTimeout(() => {
-        router.push("/user/home")
-      }, 2000)
+      router.push("/user/home")
     } catch (error) {
       console.error("Error submitting form:", error)
       setErrors({ email: "حدث خطأ أثناء حفظ البيانات" })
-    } finally {
       setIsLoading(false)
     }
   }
 
-  if (isSubmitted) {
+  if (isInitialLoading || status === "loading") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
+        <FloatingMedicalIcons />
+        <Card className="w-full max-w-md mx-auto bg-white/90 backdrop-blur-sm shadow-2xl border-0">
+          <CardContent className="p-8 text-center">
+            <div className="flex justify-center mb-4">
+              <Loader2 className="w-12 h-12 animate-spin text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">جاري التحميل...</h2>
+            <p className="text-gray-600">يرجى الانتظار قليلاً</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isSubmitted || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
         <FloatingMedicalIcons />
@@ -251,17 +249,16 @@ export default function UserInfoPage() {
             <CardDescription className="text-base sm:text-lg text-gray-600 mt-2">
               يرجى إدخال بياناتك الشخصية لإكمال عملية التسجيل
             </CardDescription>
-            
-            {/* ✅ Progress Indicator */}
+
             <div className="mt-6 space-y-2">
               <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                 <span>تقدم التسجيل</span>
                 <span className="font-semibold text-emerald-600">الخطوة 2 من 2</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
+                <div
                   className="bg-gradient-to-r from-emerald-500 to-teal-600 h-2.5 rounded-full transition-all duration-500"
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                 ></div>
               </div>
               <div className="flex items-center justify-center gap-4 text-xs text-gray-500 mt-2">
@@ -279,7 +276,6 @@ export default function UserInfoPage() {
 
           <CardContent className="p-4 sm:p-6">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              {/* Name Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName" className="text-right text-sm sm:text-base font-medium">
@@ -318,7 +314,6 @@ export default function UserInfoPage() {
                 </div>
               </div>
 
-              {/* Age Field */}
               <div className="space-y-2">
                 <Label htmlFor="age" className="text-right text-sm sm:text-base font-medium">
                   العمر *
@@ -339,7 +334,6 @@ export default function UserInfoPage() {
                 {errors.age && <p className="text-red-500 text-xs sm:text-sm text-right">{errors.age}</p>}
               </div>
 
-              {/* Phone Field with WhatsApp Warning */}
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-right text-sm sm:text-base font-medium">
                   رقم الهاتف *
@@ -357,7 +351,6 @@ export default function UserInfoPage() {
                   <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 </div>
 
-                {/* WhatsApp Warning */}
                 <Alert className="bg-green-50 border-green-200">
                   <AlertTriangle className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800 text-xs sm:text-sm text-right">
@@ -369,7 +362,6 @@ export default function UserInfoPage() {
                 {errors.phone && <p className="text-red-500 text-xs sm:text-sm text-right">{errors.phone}</p>}
               </div>
 
-              {/* Email Field - ReadOnly */}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-right text-sm sm:text-base font-medium">
                   البريد الإلكتروني
@@ -389,7 +381,6 @@ export default function UserInfoPage() {
                 <p className="text-xs text-gray-500 text-right">البريد الإلكتروني غير قابل للتعديل</p>
               </div>
 
-              {/* Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="address" className="text-right text-sm sm:text-base font-medium">
                   العنوان *
@@ -408,7 +399,6 @@ export default function UserInfoPage() {
                 {errors.address && <p className="text-red-500 text-xs sm:text-sm text-right">{errors.address}</p>}
               </div>
 
-              {/* Submit Button */}
               <Button
                 type="submit"
                 disabled={isLoading}
