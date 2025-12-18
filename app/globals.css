@@ -1,0 +1,301 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode - Medical Theme */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 27%;
+    --card: 180 100% 97%;
+    --card-foreground: 198 100% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 210 40% 98%;
+    --ring: 160 84% 39% / 0.5;
+    --chart-1: 160 84% 39%;
+    --chart-2: 0 84% 60%;
+    --chart-3: 43 96% 56%;
+    --chart-4: 215 16% 47%;
+    --chart-5: 198 100% 20%;
+    --radius: 0.5rem;
+    --sidebar-background: 180 100% 97%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 43 96% 56%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 160 84% 39% / 0.5;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Enhanced responsive form styling with better touch targets */
+@layer components {
+  .form-input {
+    @apply w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-input border border-border rounded-xl text-sm sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 hover:border-primary/50;
+    min-height: 44px; /* Touch target size */
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-foreground mb-2;
+  }
+
+  .btn-primary {
+    @apply w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base;
+    min-height: 44px; /* Touch target size */
+  }
+
+  .btn-secondary {
+    @apply w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base;
+    min-height: 44px; /* Touch target size */
+  }
+
+  .card-enhanced {
+    @apply bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+
+  .specialty-card {
+    @apply bg-card border border-border rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 cursor-pointer hover:border-primary/50 hover:bg-card/80;
+  }
+
+  .doctor-card {
+    @apply bg-card border border-border rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all duration-300 cursor-pointer hover:border-primary/50;
+  }
+
+  .calendar-day {
+    @apply w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer hover:bg-primary/10;
+    min-width: 40px; /* Touch target size */
+    min-height: 40px;
+  }
+
+  .calendar-day-available {
+    @apply bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground;
+  }
+
+  .calendar-day-selected {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .time-slot {
+    @apply px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-border text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer hover:border-primary/50 hover:bg-primary/5;
+    min-height: 40px; /* Touch target size */
+  }
+
+  .time-slot-selected {
+    @apply bg-primary text-primary-foreground border-primary;
+  }
+}
+
+/* Enhanced breakpoint for extra small screens */
+@media (min-width: 375px) {
+  .xs\:inline {
+    display: inline;
+  }
+  .xs\:hidden {
+    display: none;
+  }
+  .xs\:text-sm {
+    font-size: 0.875rem;
+  }
+  .xs\:px-4 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Better responsive spacing and container padding */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Reduce margins on small screens */
+  .space-y-8 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 1rem;
+  }
+}
+
+/* تحسين النصوص العربية */
+body {
+  font-family: "Cairo", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+/* Enhanced touch targets for mobile */
+@media (max-width: 768px) {
+  button,
+  .cursor-pointer,
+  a[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better tap highlight */
+  button:active,
+  .cursor-pointer:active {
+    opacity: 0.7;
+  }
+}
+
+/* Enhanced scrollbar for better mobile experience */
+.overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px; /* Slightly bigger for easier touch */
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Enhanced floating animation keyframes for medical icons */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+}
+
+@keyframes floatReverse {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(15px) rotate(-2deg);
+  }
+}
+
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.05);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 5s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+/* Enhanced pulse glow effect for visual appeal */
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Glass morphism effects - Dark mode compatible */
+.glass-effect {
+  background: hsl(var(--card) / 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Dark mode specific enhancements */
+/* The .dark .glass-effect rule is removed since dark mode is being removed */
+/* Also the .dark .gradient-card rule is removed */
+
+/* Enhanced gradient backgrounds - Dark mode compatible */
+.gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+}
+
+.gradient-card {
+  background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.8) 100%);
+}
+
+/* Responsive grid utilities */
+@media (max-width: 640px) {
+  .grid-responsive {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+/* Safe area insets for modern devices (notch support) */
+@supports (padding: max(0px)) {
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+}
