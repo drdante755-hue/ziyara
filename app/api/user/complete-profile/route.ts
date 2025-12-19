@@ -1,144 +1,93 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import dbConnect from "@/lib/mongodb"
-import Product from "@/models/Product"
-import Category from "@/models/Category"
+import User from "@/models/User"
+import { authOptions } from "@/app/api/auth/[...nextauth]/authOptions"
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    // التحقق من الجلسة
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ success: false, error: "غير مصرح لك" }, { status: 401 })
+    }
+
     await dbConnect()
 
-    const { searchParams } = new URL(request.url)
-    const category = searchParams.get("category")
-    const categorySlug = searchParams.get("categorySlug")
-    const search = searchParams.get("search")
-    const status = searchParams.get("status")
-    const featured = searchParams.get("featured")
-    const discount = searchParams.get("discount")
-    const limit = Number.parseInt(searchParams.get("limit") || "50")
-    const page = Number.parseInt(searchParams.get("page") || "1")
-
-    // Build query - Only show active products
-    const query: any = { status: "نشط" }
-
-    if (discount) {
-      const discountValue = Number.parseInt(discount)
-      if (!isNaN(discountValue)) {
-        // Filter products where discount field matches the specified value
-        query.discount = discountValue
-      }
+    // البحث عن المستخدم
+    const user = await User.findOne({ email: session.user.email })
+    if (!user) {
+      return NextResponse.json({ success: false, error: "المستخدم غير موجود" }, { status: 404 })
     }
 
-    if (categorySlug && categorySlug !== "all" && categorySlug !== "undefined") {
-      const decodedSlug = decodeURIComponent(categorySlug)
-
-      // تحويل الـ slug إلى اسم محتمل (استبدال الشرطات بمسافات)
-      const possibleName = decodedSlug.replace(/-/g, " ")
-
-      // البحث عن الفئة بعدة طرق
-      const categoryDoc = await Category.findOne({
-        $or: [
-          { slug: decodedSlug },
-          { slug: categorySlug },
-          { name: possibleName },
-          { name: decodedSlug },
-          { name: { $regex: new RegExp(`^${possibleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-        ],
-      }).lean()
-
-      if (categoryDoc) {
-        const categoryName = (categoryDoc as any).name
-
-        query.category = categoryName
-      } else {
-        // fallback: البحث في المنتجات مباشرة بأي شكل من أشكال الاسم
-        query.$or = [
-          { category: possibleName },
-          { category: decodedSlug },
-          { category: { $regex: new RegExp(`^${possibleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-          { categorySlug: decodedSlug },
-          { categorySlug: categorySlug },
-        ]
-      }
-    } else if (category && category !== "all" && category !== "undefined") {
-      query.category = category
+    // التحقق من أن البريد الإلكتروني تم التحقق منه
+    if (!user.emailVerified) {
+      return NextResponse.json({ success: false, error: "يجب التحقق من البريد الإلكتروني أولاً" }, { status: 403 })
     }
 
-    if (search) {
-      const searchQuery = {
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { nameAr: { $regex: search, $options: "i" } },
-          { description: { $regex: search, $options: "i" } },
-          { category: { $regex: search, $options: "i" } },
-        ],
-      }
-      // دمج شروط البحث مع الفئة
-      if (query.$or) {
-        query.$and = [{ $or: query.$or }, searchQuery]
-        delete query.$or
-      } else if (query.category) {
-        query.$and = [{ category: query.category }, searchQuery]
-        delete query.category
-      } else {
-        query.$or = searchQuery.$or
-      }
+    // قراءة البيانات من الطلب
+    const body = await request.json()
+    const { firstName, lastName, age, phone, address, email } = body
+
+    // التحقق من صحة البيانات
+    const errors: string[] = []
+
+    if (!firstName || firstName.trim().length < 2) {
+      errors.push("الاسم الأول يجب أن يكون أكثر من حرف واحد")
     }
 
-    if (status) {
-      query.status = status
+    if (!lastName || lastName.trim().length < 2) {
+      errors.push("الاسم الأخير يجب أن يكون أكثر من حرف واحد")
     }
 
-    // Get products
-    const skip = (page - 1) * limit
-
-    let productsQuery = Product.find(query)
-
-    // If featured, sort by rating and sales
-    if (featured === "true") {
-      productsQuery = productsQuery.sort({ rating: -1, reviews: -1 })
-    } else {
-      productsQuery = productsQuery.sort({ createdAt: -1 })
+    const ageNum = Number.parseInt(age)
+    if (!age || isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
+      errors.push("العمر يجب أن يكون بين 16 و 100 سنة")
     }
 
-    const [products, total, categories] = await Promise.all([
-      productsQuery.skip(skip).limit(limit).lean(),
-      Product.countDocuments(query),
-      Product.distinct("category", { status: "نشط" }),
-    ])
+    const phoneRegex = /^(\+20|0)?1[0125]\d{8}$/
+    if (!phone || !phoneRegex.test(phone.replace(/\s/g, ""))) {
+      errors.push("رقم الهاتف غير صحيح (يجب أن يكون رقم مصري صحيح)")
+    }
 
-    // Transform products for frontend
-    const transformedProducts = products.map((product: any) => ({
-      id: product._id.toString(),
-      name: product.name,
-      price: product.price,
-      originalPrice: product.discount > 0 ? Math.round(product.price / (1 - product.discount / 100)) : undefined,
-      rating: product.rating || 4.5,
-      reviews: product.reviews || 0,
-      image:
-        product.images?.[0] ||
-        product.imageUrl ||
-        `/placeholder.svg?height=200&width=200&query=${encodeURIComponent(product.name)}`,
-      category: product.category,
-      inStock: product.stock > 0,
-      discount: product.discount || 0,
-      isBestseller: product.reviews > 100,
-      isNew: product.createdAt && new Date(product.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      description: product.description || "",
-    }))
+    if (!address || address.trim().length < 10) {
+      errors.push("العنوان يجب أن يكون على الأقل 10 أحرف")
+    }
+
+    if (errors.length > 0) {
+      return NextResponse.json({ success: false, error: errors.join(", ") }, { status: 400 })
+    }
+
+    // تحديث بيانات المستخدم
+    user.firstName = firstName.trim()
+    user.lastName = lastName.trim()
+    user.age = ageNum
+    user.phone = phone.trim()
+    user.address = address.trim()
+    user.profileCompleted = true
+
+    // حفظ البريد الإلكتروني إذا تم توفيره
+    if (email && email !== user.email) {
+      user.email = email.trim()
+    }
+
+    await user.save()
 
     return NextResponse.json({
       success: true,
-      products: transformedProducts,
-      categories,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
+      message: "تم حفظ البيانات بنجاح",
+      user: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+        age: user.age,
+        profileCompleted: user.profileCompleted,
       },
     })
-  } catch (error) {
-    console.error("Error fetching products:", error)
-    return NextResponse.json({ success: false, error: "فشل في جلب المنتجات" }, { status: 500 })
+  } catch (error: any) {
+    console.error("Error completing profile:", error)
+    return NextResponse.json({ success: false, error: error?.message || "فشل في حفظ البيانات" }, { status: 500 })
   }
 }
