@@ -68,8 +68,7 @@ export async function GET() {
           : "✅ NextAuth مضبوط بشكل صحيح",
       },
 
-      note:
-        "ℹ️ Deep Link (com.firstapp.learnapk://...) لا يتم فحصه هنا — يتم السماح به من callbacks.redirect في NextAuth",
+      // note removed: deep-link handling is not supported here
 
       allConfigured,
       status: allConfigured ? "success" : "error",

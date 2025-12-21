@@ -148,10 +148,23 @@ export default function LoginPage() {
   }, [session, router, hasRedirected])
 
   const handleGoogleSignIn = () => {
-    setIsGoogleLoading(true);
-    setError("");
-    window.location.href = "/api/auth/app/google";
+  setIsGoogleLoading(true);
+  setError("");
+
+  const isMobileApp =
+    typeof window !== "undefined" &&
+    /Android|iPhone/i.test(navigator.userAgent);
+
+  if (isMobileApp) {
+    // 👈 للموبايل
+    window.location.href =
+      "/api/auth/signin/google?callbackUrl=/auth/mobile-success";
+  } else {
+    // 👈 للويب العادي
+    signIn("google", { callbackUrl: "/" });
+  }
   };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
