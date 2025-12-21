@@ -150,9 +150,7 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
     setError("")
-
     try {
-      // 1️⃣ Check Google OAuth config (زي ما انت عامل)
       let config
       try {
         const configCheck = await fetch("/api/auth/check-google-config")
@@ -171,7 +169,7 @@ export default function LoginPage() {
           errorMsg += "2. استبدال القيم في ملف .env.local:\n"
           errorMsg += "   GOOGLE_CLIENT_ID=your-actual-client-id\n"
           errorMsg += "   GOOGLE_CLIENT_SECRET=your-actual-client-secret\n"
-          errorMsg += "3. إعادة تشغيل السيرفر\n"
+          errorMsg += "3. إعادة تشغيل السيرفر (Ctrl+C ثم npm run dev)\n"
           errorMsg += "4. التحقق من الإعدادات في: /admin/check-env"
         } else {
           errorMsg += "يرجى:\n"
@@ -185,20 +183,16 @@ export default function LoginPage() {
         return
       }
 
-      // 2️⃣ ✅ الحل الصح: Redirect كامل (مش signIn)
-      window.location.href = "/api/auth/signin/google?callbackUrl=/login?mobileApp=true"
-
-
+      await signIn("google", {
+        redirect: true,
+        callbackUrl: "/login",
+      })
     } catch (err: any) {
       console.error("Google Sign-In error:", err)
-      setError(
-        err?.message ||
-        "فشل تسجيل الدخول عبر Google. تأكد من إعداد Google OAuth بشكل صحيح."
-      )
+      setError(err?.message || "فشل تسجيل الدخول عبر Google. تأكد من إعداد Google OAuth بشكل صحيح.")
       setIsGoogleLoading(false)
     }
   }
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
