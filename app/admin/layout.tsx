@@ -38,7 +38,6 @@ const adminMenuItems = [
   { name: "الخصومات", icon: TicketIcon, href: "/admin/discounts" },
   { name: "الممرضات", icon: Stethoscope, href: "/admin/nurses" },
   { name: "الاختبارات", icon: Microscope, href: "/admin/tests" },
-  { name: "التخصصات الطبية", icon: FolderHeart, href: "/admin/specialties" },
   { name: "العيادات", icon: Building2, href: "/admin/clinics" },
   { name: "المستشفيات", icon: Hospital, href: "/admin/hospitals" },
   { name: "الأطباء", icon: UserRound, href: "/admin/providers" },

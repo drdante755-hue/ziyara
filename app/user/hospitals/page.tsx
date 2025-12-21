@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 interface Hospital {
+  isActive: any
   id: string
   name: string
   nameAr: string
@@ -273,6 +274,9 @@ export default function HospitalsPage() {
                       </div>
                       {hospital.isFeatured && (
                         <Badge className="absolute top-3 right-3 bg-amber-500 text-white">مميز</Badge>
+                      )}
+                      {hospital.isActive && (
+                        <Badge className="absolute top-12 right-3 bg-emerald-500 text-white">نشط</Badge>
                       )}
                       {hospital.hasEmergency && (
                         <Badge className="absolute top-3 left-3 bg-red-500 text-white gap-1">

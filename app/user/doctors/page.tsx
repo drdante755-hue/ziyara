@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, useEffect, type MouseEvent } from "react"
 import {
   ArrowRight,
   UserRound,
@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { useToast } from "@/hooks/use-toast"
 
 interface Provider {
   id: string
@@ -53,6 +54,7 @@ export default function DoctorsPage() {
   const [homeVisit, setHomeVisit] = useState(false)
   const [onlineConsult, setOnlineConsult] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchSpecialties()
@@ -83,9 +85,24 @@ export default function DoctorsPage() {
       if (onlineConsult) params.append("online", "true")
 
       const res = await fetch(`/api/providers?${params.toString()}`)
+      const contentType = res.headers.get("content-type") || ""
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("Error fetching doctors, server returned:", text)
+        setDoctors([])
+        return
+      }
+      if (!contentType.includes("application/json")) {
+        const text = await res.text()
+        console.error("Expected JSON from /api/providers but received:", text)
+        setDoctors([])
+        return
+      }
       const data = await res.json()
       if (data.success) {
         setDoctors(data.providers || [])
+      } else {
+        console.error("Providers API returned error:", data)
       }
     } catch (error) {
       console.error("Error fetching doctors:", error)
@@ -93,6 +110,62 @@ export default function DoctorsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const rateDoctor = async (id: string, rating: number) => {
+    try {
+      const res = await fetch(`/api/providers/${id}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      })
+      const contentType = res.headers.get("content-type") || ""
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("Error rating doctor, server returned:", text)
+        toast({ title: "خطأ", description: "فشل إرسال التقييم" })
+        return
+      }
+      if (!contentType.includes("application/json")) {
+        const text = await res.text()
+        console.error("Expected JSON from rate endpoint but received:", text)
+        toast({ title: "خطأ", description: "فشل إرسال التقييم" })
+        return
+      }
+      const data = await res.json()
+      if (data.success) {
+        toast({ title: "شكراً", description: "تم استلام تقييمك" })
+        fetchDoctors()
+      } else {
+        toast({ title: "خطأ", description: data.error || "فشل إرسال التقييم" })
+      }
+    } catch (error) {
+      console.error("Error rating doctor:", error)
+      toast({ title: "خطأ", description: "فشل اتصال بالخادم" })
+    }
+  }
+
+  function StarRating({ value, onRate }: { value: number; onRate: (n: number) => void }) {
+    const [hover, setHover] = useState<number>(0)
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Star
+            key={i}
+            className={`w-4 h-4 cursor-pointer transition-colors ${
+              i <= (hover || Math.round(value)) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-300"
+            }`}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover(0)}
+            onClick={(e: MouseEvent) => {
+              e.stopPropagation()
+              e.preventDefault()
+              onRate(i)
+            }}
+          />
+        ))}
+      </div>
+    )
   }
 
   const handleSearch = () => {
@@ -294,13 +367,13 @@ export default function DoctorsPage() {
               <h2 className="text-xl xs:text-2xl font-bold text-gray-900">{doctors.length} طبيب</h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 xs:gap-5 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
               {doctors.map((doctor) => (
                 <Link key={doctor.id} href={`/user/doctors/${doctor.id}`} className="group">
-                  <Card className="h-full bg-white hover:shadow-xl transition-all duration-300 border-0 shadow-md overflow-hidden rounded-2xl">
-                    <CardContent className="p-6">
-                      <div className="flex gap-4 mb-4">
-                        <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 shrink-0">
+                  <Card className="h-full bg-white hover:shadow-xl transition-all duration-300 border-0 shadow-md overflow-hidden rounded-2xl flex flex-col">
+                    <CardContent className="p-4 sm:p-5 md:p-6">
+                      <div className="flex gap-3 sm:gap-4 mb-4 items-start">
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                           <Image
                             src={
                               doctor.image ||
@@ -310,20 +383,23 @@ export default function DoctorsPage() {
                             fill
                             className="object-cover"
                           />
-                          {doctor.isVerified && (
-                            <div className="absolute -bottom-1 -right-1 bg-teal-500 rounded-full p-1">
-                              <BadgeCheck className="w-4 h-4 text-white" />
-                            </div>
-                          )}
+                          {/* overlay badge removed to avoid overlap with placeholder image */}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 mb-1 group-hover:text-teal-600 transition-colors truncate">
-                            {doctor.nameAr || doctor.name || "طبيب"}
-                          </h3>
-                          <p className="text-sm text-teal-600 font-medium mb-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-900 mb-1 group-hover:text-teal-600 transition-colors truncate text-sm sm:text-base md:text-lg">
+                              {doctor.nameAr || doctor.name || "طبيب"}
+                            </h3>
+                            {doctor.isVerified && (
+                              <div title="موثق" className="text-teal-600">
+                                <BadgeCheck className="w-4 h-4" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-teal-600 font-medium mb-1">
                             {doctor.titleAr || doctor.title || ""}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs sm:text-sm text-gray-500">
                             {doctor.specialtyAr || doctor.specialty || "تخصص عام"}
                           </p>
                         </div>
@@ -345,11 +421,11 @@ export default function DoctorsPage() {
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between pt-4 border-t">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                          <span className="font-semibold">{(doctor.rating ?? 0).toFixed(1)}</span>
-                          <span className="text-gray-400 text-sm">({doctor.reviewsCount ?? 0})</span>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t gap-3">
+                        <div className="flex items-center gap-3">
+                          <StarRating value={doctor.rating ?? 0} onRate={(n) => rateDoctor(doctor.id, n)} />
+                          <div className="text-sm text-gray-700">{(doctor.rating ?? 0).toFixed(1)}</div>
+                          <div className="text-xs text-gray-400">({doctor.reviewsCount ?? 0})</div>
                         </div>
                         <div className="text-left">
                           <p className="text-lg font-bold text-gray-900">{doctor.consultationFee ?? 0}</p>

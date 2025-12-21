@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Clock, MapPin, Video, Home, Loader2, ChevronLeft } from "lucide-react"
+import { Calendar, Clock, MapPin, Video, Loader2, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 
 interface Booking {
@@ -42,7 +42,7 @@ const typeMap: { [key: string]: { label: string; icon: React.ReactNode } } = {
   clinic: { label: "في العيادة", icon: <MapPin className="w-4 h-4" /> },
   hospital: { label: "في المستشفى", icon: <MapPin className="w-4 h-4" /> },
   online: { label: "أونلاين", icon: <Video className="w-4 h-4" /> },
-  home: { label: "زيارة منزلية", icon: <Home className="w-4 h-4" /> },
+  home: { label: "زيارة منزلية", icon: <MapPin className="w-4 h-4" /> },
 }
 
 export default function MyBookingsPage() {
@@ -136,8 +136,20 @@ export default function MyBookingsPage() {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6 px-4">
-        <h1 className="text-2xl font-bold">حجوزاتي</h1>
-        <p className="text-primary-foreground/80">إدارة مواعيدك الطبية</p>
+        <div className="flex items-center gap-3 mb-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-primary-foreground hover:bg-primary-foreground/10"
+            onClick={() => router.back()}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">حجوزاتي</h1>
+            <p className="text-primary-foreground/80">إدارة مواعيدك الطبية</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

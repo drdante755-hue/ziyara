@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -48,8 +48,7 @@ interface Slot {
   status: string
 }
 
-export default function BookingPage({ params }: { params: { id: string } }) {
-  const { id } = params
+const BookingPageClient = ({ id }: { id: string }) => {
   const router = useRouter()
   const { data: session } = useSession()
 
@@ -107,12 +106,74 @@ export default function BookingPage({ params }: { params: { id: string } }) {
 
   const fetchSlots = async () => {
     try {
-      const res = await fetch(
-        `/api/slots?providerId=${id}&date=${selectedDate}&type=${appointmentType}&status=available`,
-      )
+      const url = `/api/slots?providerId=${id}&date=${selectedDate}&type=${appointmentType}&status=available`
+      const res = await fetch(url)
+      const contentType = res.headers.get("content-type") || ""
+      if (!res.ok) {
+        if (contentType.includes("application/json")) {
+          const err = await res.json()
+          console.error("Slots API returned error:", err)
+        } else {
+          console.error(`Error fetching slots: ${res.status} ${res.statusText} for ${url}`)
+        }
+        setSlots([])
+        return
+      }
+
+      if (!contentType.includes("application/json")) {
+        console.warn(`Expected JSON from ${url} but got '${contentType}'. No slots will be shown.`)
+        setSlots([])
+        return
+      }
+
       const data = await res.json()
       if (data.success) {
-        setSlots(data.slots)
+        if (data.slots && data.slots.length > 0) {
+          setSlots(data.slots)
+        } else {
+          // No slots returned from API — try a lightweight client-side fallback
+          const avail = (doctor as any)?.availability || (doctor as any)
+          const startTime = avail?.startTime || avail?.defaultStartTime || "09:00"
+          const endTime = avail?.endTime || avail?.defaultEndTime || "17:00"
+          const slotDuration = avail?.slotDuration || 30
+
+          const parseHM = (t: string) => {
+            const [hh, mm] = (t || "").split(":").map((s) => Number.parseInt(s))
+            return { hh: Number.isFinite(hh) ? hh : 9, mm: Number.isFinite(mm) ? mm : 0 }
+          }
+
+          const start = parseHM(startTime)
+          const end = parseHM(endTime)
+
+          const slotsFallback: Slot[] = []
+          const base = new Date(selectedDate)
+          base.setHours(start.hh, start.mm, 0, 0)
+          let cursor = new Date(base)
+          while (true) {
+            const next = new Date(cursor.getTime() + slotDuration * 60000)
+            // stop when next is after end time
+            if (next.getHours() > end.hh || (next.getHours() === end.hh && next.getMinutes() > end.mm)) break
+            const s = cursor.toISOString().split("T")[1].slice(0, 5)
+            const e = next.toISOString().split("T")[1].slice(0, 5)
+            slotsFallback.push({
+              id: `${selectedDate}-${s}`,
+              date: selectedDate,
+              startTime: s,
+              endTime: e,
+              type: appointmentType === "home" ? "home" : appointmentType === "online" ? "online" : "clinic",
+              price: getPrice(),
+              status: "available",
+            })
+            cursor = next
+            // safety: prevent infinite loops
+            if (slotsFallback.length > 200) break
+          }
+
+          setSlots(slotsFallback)
+        }
+      } else {
+        console.error("Slots API returned error:", data)
+        setSlots([])
       }
     } catch (error) {
       console.error("Error fetching slots:", error)
@@ -143,19 +204,36 @@ export default function BookingPage({ params }: { params: { id: string } }) {
 
     setSubmitting(true)
     try {
+      const isObjectId = (val: string) => /^[0-9a-fA-F]{24}$/.test(val)
+
+      const body: any = {
+        patientName,
+        patientPhone,
+        patientAge: patientAge ? Number.parseInt(patientAge) : undefined,
+        patientGender,
+        address: appointmentType === "home" ? address : undefined,
+        symptoms,
+        paymentMethod,
+      }
+
+      if (isObjectId(selectedSlot.id)) {
+        body.slotId = selectedSlot.id
+      } else {
+        // send fallback slot details so server can create a real slot if needed
+        body.fallbackSlot = {
+          providerId: id,
+          date: selectedSlot.date,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          type: selectedSlot.type,
+          price: selectedSlot.price,
+        }
+      }
+
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slotId: selectedSlot.id,
-          patientName,
-          patientPhone,
-          patientAge: patientAge ? Number.parseInt(patientAge) : undefined,
-          patientGender,
-          address: appointmentType === "home" ? address : undefined,
-          symptoms,
-          paymentMethod,
-        }),
+        body: JSON.stringify(body),
       })
 
       const data = await res.json()
@@ -514,4 +592,9 @@ export default function BookingPage({ params }: { params: { id: string } }) {
       </div>
     </div>
   )
+}
+
+export default function BookingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  return <BookingPageClient id={id} />
 }

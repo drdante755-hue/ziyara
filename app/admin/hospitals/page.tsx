@@ -57,12 +57,18 @@ interface HospitalData {
   name: string
   nameEn?: string
   description?: string
-  address: {
-    street?: string
-    city: string
-    area?: string
-    governorate: string
-  }
+  // API may return `address` as a string or an object; accept both shapes
+  address:
+    | string
+    | {
+        street?: string
+        city: string
+        area?: string
+        governorate: string
+      }
+  // some endpoints may expose `city`/`area` at top-level — allow that
+  city?: string
+  area?: string
   phone: string[]
   email?: string
   departments: string[] // تغيير النوع ليكون مصفوفة نصوص
@@ -121,6 +127,15 @@ function HospitalModalForm({
         ...prev,
         departments: [...prev.departments, prev.customDepartment.trim()],
         customDepartment: "",
+      }))
+    }
+  }
+
+  const handleSelectDepartment = (dept: string) => {
+    if (!formData.departments.includes(dept)) {
+      setFormData((prev) => ({
+        ...prev,
+        departments: [...prev.departments, dept],
       }))
     }
   }
@@ -280,33 +295,24 @@ function HospitalModalForm({
               </div>
             )}
 
-            {/* قائمة الأقسام الثابتة */}
-            <div className="border rounded-lg p-3 max-h-40 overflow-y-auto mb-3">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {HOSPITAL_DEPARTMENTS.map((dept) => (
-                  <label
-                    key={dept}
-                    className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.departments.includes(dept)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData((prev) => ({ ...prev, departments: [...prev.departments, dept] }))
-                        } else {
-                          setFormData((prev) => ({
-                            ...prev,
-                            departments: prev.departments.filter((d) => d !== dept),
-                          }))
-                        }
-                      }}
-                      className="rounded"
-                    />
-                    <span className="truncate">{dept}</span>
-                  </label>
+            {/* قائمة منسدلة لاختيار الأقسام */}
+            <div className="mb-3">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleSelectDepartment(e.target.value)
+                  }
+                }}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="">اختر قسماً من القائمة...</option>
+                {HOSPITAL_DEPARTMENTS.filter((dept) => !formData.departments.includes(dept)).map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
             {/* إضافة قسم مخصص */}
@@ -314,7 +320,7 @@ function HospitalModalForm({
               <Input
                 value={formData.customDepartment}
                 onChange={(e) => setFormData((prev) => ({ ...prev, customDepartment: e.target.value }))}
-                placeholder="أضف قسم آخر غير موجود في القائمة..."
+                placeholder="أو أضف قسم آخر غير موجود في القائمة..."
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault()
@@ -464,7 +470,25 @@ export default function HospitalsAdmin() {
       const response = await fetch("/api/hospitals")
       if (response.ok) {
         const data = await response.json()
-        setHospitals(data.hospitals || [])
+        const hospitalsData = (data.hospitals || []).map((h: any) => {
+          // normalize id
+          const _id = h._id || h.id
+
+          // normalize phone to always be an array of strings
+          let phoneArr: string[] = []
+          if (Array.isArray(h.phone)) phoneArr = h.phone.map((p: any) => String(p).trim()).filter(Boolean)
+          else if (typeof h.phone === "string") phoneArr = h.phone.split(",").map((p: string) => p.trim()).filter(Boolean)
+
+          return {
+            ...h,
+            _id,
+            phone: phoneArr,
+            departments: h.departments || [],
+            images: h.images || [],
+            isActive: typeof h.isActive === "boolean" ? h.isActive : true,
+          }
+        })
+        setHospitals(hospitalsData)
       }
     } catch (error) {
       console.error("Error fetching hospitals:", error)
@@ -477,16 +501,22 @@ export default function HospitalsAdmin() {
     fetchHospitals()
   }, [fetchHospitals])
 
+  // helpers to safely read city/area/governorate from possible address shapes
+  const getHospitalCity = (h: HospitalData) => (typeof h.address === "object" ? h.address.city : h.city || "")
+  const getHospitalArea = (h: HospitalData) => (typeof h.address === "object" ? h.address.area || "" : h.area || "")
+  const getHospitalGovernorate = (h: HospitalData) => (typeof h.address === "object" ? h.address.governorate : undefined)
+
   const handleEdit = (hospital: HospitalData) => {
     setEditingHospital(hospital)
     setFormData({
       name: hospital.name,
       nameEn: hospital.nameEn || "",
       description: hospital.description || "",
-      street: hospital.address?.street || "",
-      city: hospital.address?.city || "",
-      area: hospital.address?.area || "",
-      governorate: hospital.address?.governorate || "القاهرة",
+      // address may be string or object depending on API shape
+      street: (typeof hospital.address === "object" ? hospital.address?.street : hospital.address) || "",
+      city: getHospitalCity(hospital) || "",
+      area: getHospitalArea(hospital) || "",
+      governorate: getHospitalGovernorate(hospital) || "القاهرة",
       phone: hospital.phone?.join(", ") || "",
       email: hospital.email || "",
       departments: hospital.departments || [],
@@ -506,19 +536,18 @@ export default function HospitalsAdmin() {
     setSaving(true)
     try {
       const hospitalPayload = {
-        name: formData.name,
-        nameEn: formData.nameEn || undefined,
+        // API requires both name and nameAr
+        name: formData.nameEn || formData.name,
+        nameAr: formData.name,
         description: formData.description || undefined,
-        address: {
-          street: formData.street || undefined,
-          city: formData.city,
-          area: formData.area || undefined,
-          governorate: formData.governorate,
-        },
-        phone: formData.phone
-          .split(",")
-          .map((p) => p.trim())
-          .filter(Boolean),
+        // server expects address as a string and separate city/area
+        address: `${formData.street?.trim() ? formData.street.trim() + ", " : ""}${
+          formData.area?.trim() ? formData.area.trim() + ", " : ""
+        }${formData.city}`,
+        city: formData.city,
+        area: formData.area,
+        // server expects phone as a single string
+        phone: formData.phone?.trim() || "",
         email: formData.email || undefined,
         departments: formData.departments, // إرسال الأقسام كمصفوفة نصوص
         facilities: formData.facilities
@@ -577,7 +606,7 @@ export default function HospitalsAdmin() {
   const filteredHospitals = hospitals.filter(
     (hospital) =>
       hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.address?.city?.toLowerCase().includes(searchTerm.toLowerCase()),
+      getHospitalCity(hospital).toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   return (
@@ -631,7 +660,7 @@ export default function HospitalsAdmin() {
       ) : (
         <div className="grid gap-4">
           {filteredHospitals.map((hospital) => (
-            <Card key={hospital._id}>
+            <Card key={hospital._id || (hospital as any).id}>
               <CardContent className="p-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
@@ -647,7 +676,7 @@ export default function HospitalsAdmin() {
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
-                        {hospital.address?.city}, {hospital.address?.governorate}
+                        {getHospitalCity(hospital)}{getHospitalGovernorate(hospital) ? `, ${getHospitalGovernorate(hospital)}` : ""}
                       </span>
                       <span className="flex items-center gap-1">
                         <Phone className="w-4 h-4" />

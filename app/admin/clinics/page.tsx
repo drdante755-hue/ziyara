@@ -10,17 +10,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit2, Trash2, Search, X, Loader2, RefreshCw, Building2, MapPin, Phone } from "lucide-react"
 
 interface Clinic {
-  _id: string
+  _id?: string
+  id?: string
   name: string
   nameEn?: string
+  nameAr?: string
   description?: string
-  address: {
+  descriptionAr?: string
+  address?: string | {
     street?: string
     city: string
     area?: string
     governorate: string
   }
-  phone: string[]
+  city?: string
+  area?: string
+  governorate?: string
+  phone: string | string[]
   email?: string
   specialties: string[]
   workingHours: Array<{
@@ -426,7 +432,13 @@ export default function ClinicsPage() {
       const result = await response.json()
 
       if (result.success) {
-        setClinics(result.clinics || result.data || [])
+        const clinicsData = (result.clinics || result.data || [])
+          // تحويل id إلى _id لضمان توافق مع الكود
+          .map((clinic: any) => ({
+            ...clinic,
+            _id: clinic._id || clinic.id,
+          }))
+        setClinics(clinicsData)
       } else {
         showAlert(result.error || "حدث خطأ أثناء جلب العيادات", "error")
         setClinics([])
@@ -483,15 +495,45 @@ export default function ClinicsPage() {
     const specialtiesArray =
       clinic.specialties?.map((s) => (typeof s === "string" ? s : (s as any).name || "")).filter(Boolean) || []
 
+    // معالجة العنوان (قد يكون string أو object)
+    let street = ""
+    let city = ""
+    let area = ""
+    let governorate = "القاهرة"
+
+    if (typeof clinic.address === "string") {
+      // إذا كان address string، حاول تقسيمه
+      const parts = clinic.address.split(",").map(p => p.trim())
+      street = parts[0] || ""
+      area = parts[1] || ""
+    } else if (clinic.address && typeof clinic.address === "object") {
+      street = clinic.address.street || ""
+      city = clinic.address.city || ""
+      area = clinic.address.area || ""
+      governorate = clinic.address.governorate || "القاهرة"
+    }
+
+    // المدينة قد تكون في clinic.city بدلاً من clinic.address.city
+    if (!city && clinic.city) {
+      city = clinic.city
+    }
+
+    // المنطقة قد تكون في clinic.area بدلاً من clinic.address.area
+    if (!area && clinic.area) {
+      area = clinic.area
+    }
+
+    const phoneStr = typeof clinic.phone === "string" ? clinic.phone : (clinic.phone?.join(", ") || "")
+
     setFormData({
       name: clinic.name || "",
-      nameEn: clinic.nameEn || "",
-      description: clinic.description || "",
-      street: clinic.address?.street || "",
-      city: clinic.address?.city || "",
-      area: clinic.address?.area || "",
-      governorate: clinic.address?.governorate || "القاهرة",
-      phone: clinic.phone?.join(", ") || "",
+      nameEn: clinic.nameEn || clinic.nameAr || "",
+      description: clinic.description || clinic.descriptionAr || "",
+      street: street,
+      city: city,
+      area: area,
+      governorate: governorate,
+      phone: phoneStr,
       email: clinic.email || "",
       specialties: specialtiesArray,
       customSpecialty: "",
@@ -503,32 +545,66 @@ export default function ClinicsPage() {
     setShowEditModal(true)
   }
 
+  // دالة التحقق من الحقول المطلوبة
+  const validateFormData = (): boolean => {
+    const requiredFields = [
+      { key: "name", label: "اسم العيادة (عربي)" },
+      { key: "city", label: "المدينة" },
+      { key: "governorate", label: "المحافظة" },
+      { key: "phone", label: "رقم الهاتف" },
+    ]
+
+    for (const field of requiredFields) {
+      const value = formData[field.key as keyof ClinicFormData]
+      if (!value || String(value).trim() === "") {
+        showAlert(`حقل ${field.label} مطلوب`, "error")
+        return false
+      }
+    }
+
+    // التحقق من أن رقم الهاتف صحيح
+    const phones = formData.phone
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean)
+    if (phones.length === 0) {
+      showAlert("يجب إدخال رقم هاتف واحد على الأقل", "error")
+      return false
+    }
+
+    return true
+  }
+
   const handleSaveClinic = async () => {
+    // التحقق من الحقول المطلوبة أولاً
+    if (!validateFormData()) {
+      return
+    }
+
     try {
       setSaving(true)
+      // معالجة أرقام الهاتف
+      const phoneArray = formData.phone
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean)
+      
       const payload = {
-        name: formData.name,
-        nameEn: formData.nameEn,
+        name: formData.nameEn || formData.name, // الاسم الإنجليزي أو العربي كقيمة افتراضية
+        nameAr: formData.name, // الاسم العربي (مطلوب)
         description: formData.description,
-        address: {
-          street: formData.street,
-          city: formData.city,
-          area: formData.area,
-          governorate: formData.governorate,
-        },
-        phone: formData.phone
-          .split(",")
-          .map((p) => p.trim())
-          .filter(Boolean),
+        descriptionAr: formData.description,
+        address: `${formData.street}, ${formData.area}`, // دمج العنوان كنص واحد
+        city: formData.city,
+        area: formData.area,
+        phone: phoneArray.join(", "), // إرسال كـ string واحد مدمج
         email: formData.email,
-        specialties: formData.specialties, // إرسال التخصصات كـ array من strings
+        specialties: formData.specialties || [],
         workingHours: formData.workingHours,
         images: formData.images
           .split(",")
           .map((i) => i.trim())
           .filter(Boolean),
-        isActive: formData.isActive,
-        isFeatured: formData.isFeatured,
       }
 
       const response = await fetch("/api/clinics", {
@@ -559,31 +635,36 @@ export default function ClinicsPage() {
       return
     }
 
+    // التحقق من الحقول المطلوبة أولاً
+    if (!validateFormData()) {
+      return
+    }
+
     try {
       setSaving(true)
+      
+      // معالجة أرقام الهاتف
+      const phoneArray = formData.phone
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean)
+      
       const payload = {
-        name: formData.name,
-        nameEn: formData.nameEn,
+        name: formData.nameEn || formData.name, // الاسم الإنجليزي أو العربي كقيمة افتراضية
+        nameAr: formData.name, // الاسم العربي (مطلوب)
         description: formData.description,
-        address: {
-          street: formData.street,
-          city: formData.city,
-          area: formData.area,
-          governorate: formData.governorate,
-        },
-        phone: formData.phone
-          .split(",")
-          .map((p) => p.trim())
-          .filter(Boolean),
+        descriptionAr: formData.description,
+        address: `${formData.street}, ${formData.area}`, // دمج العنوان كنص واحد
+        city: formData.city,
+        area: formData.area,
+        phone: phoneArray.join(", "), // إرسال كـ string واحد مدمج
         email: formData.email,
-        specialties: formData.specialties, // إرسال التخصصات كـ array من strings
+        specialties: formData.specialties || [],
         workingHours: formData.workingHours,
         images: formData.images
           .split(",")
           .map((i) => i.trim())
           .filter(Boolean),
-        isActive: formData.isActive,
-        isFeatured: formData.isFeatured,
       }
 
       const response = await fetch(`/api/clinics/${editingClinic._id}`, {
@@ -609,11 +690,17 @@ export default function ClinicsPage() {
     }
   }
 
-  const handleDeleteClinic = async (id: string) => {
+  const handleDeleteClinic = async (clinic: Clinic) => {
     if (!confirm("هل أنت متأكد من حذف هذه العيادة؟")) return
 
+    const clinicId = clinic._id || clinic.id
+    if (!clinicId) {
+      showAlert("حدث خطأ: لا يمكن تحديد العيادة", "error")
+      return
+    }
+
     try {
-      const response = await fetch(`/api/clinics/${id}`, {
+      const response = await fetch(`/api/clinics/${clinicId}`, {
         method: "DELETE",
       })
 
@@ -706,7 +793,7 @@ export default function ClinicsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {clinics.map((clinic) => (
-            <Card key={clinic._id} className="overflow-hidden">
+            <Card key={clinic._id || clinic.id} className="overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -727,14 +814,28 @@ export default function ClinicsPage() {
                     <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                       <MapPin className="w-3 h-3" />
                       <span className="truncate">
-                        {clinic.address?.city}، {clinic.address?.governorate}
+                        {
+                          // عرض: المدينة ثم المنطقة ثم العنوان التفصيلي (ثم المحافظة إن وُجدت)
+                          typeof clinic.address === "string"
+                            ? (() => {
+                                const parts = clinic.address.split(",").map((p) => p.trim())
+                                const streetPart = parts[0] || ""
+                                const areaPart = parts[1] || ""
+                                return [clinic.city, areaPart, streetPart, clinic.governorate].filter(Boolean).join(", ")
+                              })()
+                            : clinic.address
+                            ? [clinic.address.city, clinic.address.area, clinic.address.street, clinic.address.governorate]
+                                .filter(Boolean)
+                                .join(", ")
+                            : [clinic.city, clinic.area, clinic.governorate].filter(Boolean).join(", ")
+                        }
                       </span>
                     </div>
 
-                    {clinic.phone?.length > 0 && (
+                    {( (typeof clinic.phone === "string" && clinic.phone.trim() !== "") || (Array.isArray(clinic.phone) && clinic.phone.length > 0) ) && (
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Phone className="w-3 h-3" />
-                        <span dir="ltr">{clinic.phone[0]}</span>
+                        <span dir="ltr">{typeof clinic.phone === "string" ? clinic.phone.split(",")[0].trim() : clinic.phone[0]}</span>
                       </div>
                     )}
 
@@ -762,7 +863,7 @@ export default function ClinicsPage() {
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteClinic(clinic._id)}
+                      onClick={() => handleDeleteClinic(clinic)}
                       className="p-2 hover:bg-red-50 rounded-lg text-muted-foreground hover:text-red-600"
                     >
                       <Trash2 className="w-4 h-4" />

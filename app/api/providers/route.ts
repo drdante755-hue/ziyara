@@ -58,6 +58,12 @@ export async function GET(request: NextRequest) {
       bio: provider.bio,
       bioAr: provider.bioAr,
       image: provider.image || `/placeholder.svg?height=200&width=200&query=doctor ${provider.gender}`,
+      // include contact and status fields so admin UI can display saved values
+      phone: provider.phone,
+      email: provider.email,
+      clinicId: provider.clinicId,
+      hospitalId: provider.hospitalId,
+      isActive: typeof provider.isActive === "boolean" ? provider.isActive : true,
       gender: provider.gender,
       languages: provider.languages,
       education: provider.education,

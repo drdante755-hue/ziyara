@@ -8,9 +8,27 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Edit2, Trash2, Search, X, Loader2, RefreshCw, UserRound, Star, Briefcase } from "lucide-react"
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Search,
+  X,
+  Loader2,
+  RefreshCw,
+  UserRound,
+  Star,
+  Briefcase,
+  Phone,
+  Clock,
+  Calendar,
+  Check,
+  CheckCircle,
+  Save,
+} from "lucide-react"
 
 interface Provider {
+  [x: string]: any
   _id: string
   name: string
   nameEn?: string
@@ -35,6 +53,14 @@ interface Provider {
   isVerified: boolean
   offersHomeVisit: boolean
   offersOnlineConsultation: boolean
+  // optional availability fields
+  availability?: {
+    startDate?: string
+    endDate?: string
+    startTime?: string
+    endTime?: string
+    days?: string[]
+  }
 }
 
 interface ProviderFormData {
@@ -46,7 +72,6 @@ interface ProviderFormData {
   specialty: string
   customSpecialty: string
   subSpecialties: string
-  qualifications: string
   experience: string
   consultationFee: string
   followUpFee: string
@@ -60,6 +85,22 @@ interface ProviderFormData {
   isVerified: boolean
   offersHomeVisit: boolean
   offersOnlineConsultation: boolean
+  // availability
+  startDate: string
+  endDate: string
+  startTime: string
+  endTime: string
+  days: string[]
+  // per-day availability overrides
+  perDayAvailability: Record<string, { startTime?: string; endTime?: string; enabled?: boolean }>
+  // new availability fields
+  defaultScheduleEnabled?: boolean
+  defaultStartTime?: string
+  defaultEndTime?: string
+  slotDuration?: number
+  customDays: Record<string, { startTime?: string; endTime?: string; enabled?: boolean; isClosed?: boolean }>
+  // redesigned availability fields
+  workingDays?: string[]
 }
 
 const MEDICAL_SPECIALTIES = [
@@ -104,6 +145,408 @@ const MEDICAL_SPECIALTIES = [
   "طب المسنين",
 ]
 
+const WEEK_DAYS = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+
+const AvailabilitySection = ({
+  formData,
+  setFormData,
+}: {
+  formData: ProviderFormData
+  setFormData: React.Dispatch<React.SetStateAction<ProviderFormData>>
+}) => {
+  const weekDays = [
+    { key: "sunday", label: "الأحد" },
+    { key: "monday", label: "الاثنين" },
+    { key: "tuesday", label: "الثلاثاء" },
+    { key: "wednesday", label: "الأربعاء" },
+    { key: "thursday", label: "الخميس" },
+    { key: "friday", label: "الجمعة", isSpecial: true },
+    { key: "saturday", label: "السبت" },
+  ]
+
+  const toggleCustomDay = (dayKey: string) => {
+    setFormData((prev) => {
+      const customDays = { ...prev.customDays }
+      if (customDays[dayKey]?.enabled) {
+        customDays[dayKey] = { ...customDays[dayKey], enabled: false }
+      } else {
+        customDays[dayKey] = {
+          enabled: true,
+          startTime: prev.defaultStartTime || "09:00",
+          endTime: prev.defaultEndTime || "17:00",
+          isClosed: false,
+        }
+      }
+      return { ...prev, customDays }
+    })
+  }
+
+  const updateCustomDayTime = (dayKey: string, field: "startTime" | "endTime", value: string) => {
+    setFormData((prev) => {
+      const customDays = { ...prev.customDays }
+      customDays[dayKey] = { ...customDays[dayKey], [field]: value }
+      return { ...prev, customDays }
+    })
+  }
+
+  const toggleDayClosed = (dayKey: string) => {
+    setFormData((prev) => {
+      const customDays = { ...prev.customDays }
+      customDays[dayKey] = {
+        ...customDays[dayKey],
+        isClosed: !customDays[dayKey]?.isClosed,
+      }
+      return { ...prev, customDays }
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Default Schedule */}
+      <div className="rounded-xl border border-border bg-muted/30 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-sm">الجدول الافتراضي</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              يطبق على جميع أيام الأسبوع (ما لم يتم تخصيص وقت معين لليوم)
+            </p>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.defaultScheduleEnabled ?? true}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  defaultScheduleEnabled: e.target.checked,
+                }))
+              }
+              className="rounded"
+            />
+            <span className="text-sm">مفعّل</span>
+          </label>
+        </div>
+
+        {formData.defaultScheduleEnabled && (
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">من</label>
+              <Input
+                type="time"
+                value={formData.defaultStartTime || "09:00"}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    defaultStartTime: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">إلى</label>
+              <Input
+                type="time"
+                value={formData.defaultEndTime || "17:00"}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    defaultEndTime: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">مدة الكشف (دقيقة)</label>
+              <Input
+                type="number"
+                value={formData.slotDuration || 30}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    slotDuration: Number.parseInt(e.target.value) || 30,
+                  }))
+                }
+                min="15"
+                step="15"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Custom Days */}
+      <div>
+        <h3 className="font-semibold text-sm mb-3">تخصيص أيام معينة (اختياري)</h3>
+        <div className="space-y-2">
+          {weekDays.map((day) => {
+            const customDay = formData.customDays?.[day.key]
+            const isCustom = customDay?.enabled
+
+            return (
+              <div
+                key={day.key}
+                className={`rounded-xl border p-3 transition-all ${
+                  isCustom
+                    ? "border-primary bg-primary/5"
+                    : day.isSpecial
+                      ? "border-yellow-500/30 bg-yellow-500/5"
+                      : "border-border"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-[120px]">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isCustom || false}
+                        onChange={() => toggleCustomDay(day.key)}
+                        className="rounded"
+                      />
+                      <span className="font-medium text-sm">{day.label}</span>
+                    </label>
+                    {day.isSpecial && (
+                      <span className="text-xs bg-yellow-500/20 text-yellow-700 px-2 py-0.5 rounded">خاص</span>
+                    )}
+                  </div>
+
+                  {isCustom && (
+                    <div className="flex items-center gap-2 flex-1">
+                      {!customDay?.isClosed ? (
+                        <>
+                          <Input
+                            type="time"
+                            value={customDay?.startTime || formData.defaultStartTime || "09:00"}
+                            onChange={(e) => updateCustomDayTime(day.key, "startTime", e.target.value)}
+                            className="h-9"
+                          />
+                          <span className="text-xs text-muted-foreground">-</span>
+                          <Input
+                            type="time"
+                            value={customDay?.endTime || formData.defaultEndTime || "17:00"}
+                            onChange={(e) => updateCustomDayTime(day.key, "endTime", e.target.value)}
+                            className="h-9"
+                          />
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground px-3">مغلق</span>
+                      )}
+                      <Button
+                        type="button"
+                        variant={customDay?.isClosed ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => toggleDayClosed(day.key)}
+                        className="whitespace-nowrap"
+                      >
+                        {customDay?.isClosed ? "فتح" : "إغلاق"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {!isCustom && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>الوقت الافتراضي</span>
+                    </div>
+                  )}
+                </div>
+
+                {isCustom && !customDay?.isClosed && (
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <p className="text-xs text-muted-foreground">🔔 توقيت خاص لهذا اليوم</p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const AvailabilityModal = ({
+  formData,
+  setFormData,
+  onClose,
+}: {
+  formData: any
+  setFormData: (fn: (prev: any) => any) => void
+  onClose: () => void
+}) => {
+  const weekDays = [
+    { key: "sunday", label: "الأحد", nameEn: "Sunday" },
+    { key: "monday", label: "الاثنين", nameEn: "Monday" },
+    { key: "tuesday", label: "الثلاثاء", nameEn: "Tuesday" },
+    { key: "wednesday", label: "الأربعاء", nameEn: "Wednesday" },
+    { key: "thursday", label: "الخميس", nameEn: "Thursday" },
+    { key: "friday", label: "الجمعة", nameEn: "Friday" },
+    { key: "saturday", label: "السبت", nameEn: "Saturday" },
+  ]
+
+  const toggleDay = (dayKey: string) => {
+    setFormData((prev) => {
+      const workingDays = [...(prev.workingDays || [])]
+      const index = workingDays.indexOf(dayKey)
+
+      if (index > -1) {
+        workingDays.splice(index, 1)
+      } else {
+        workingDays.push(dayKey)
+      }
+
+      return { ...prev, workingDays }
+    })
+  }
+
+  const isDayEnabled = (dayKey: string) => {
+    return (formData.workingDays || []).includes(dayKey)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <div>
+            <h2 className="text-xl font-bold">إعدادات أوقات العمل</h2>
+            <p className="text-sm text-muted-foreground mt-1">حدد الأيام وأوقات العمل الافتراضية</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Default Working Hours */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">أوقات العمل الافتراضية</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border">
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  وقت البدء
+                </label>
+                <Input
+                  type="time"
+                  value={formData.startTime || "09:00"}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      startTime: e.target.value,
+                    }))
+                  }
+                  className="text-lg"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  وقت الانتهاء
+                </label>
+                <Input
+                  type="time"
+                  value={formData.endTime || "17:00"}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      endTime: e.target.value,
+                    }))
+                  }
+                  className="text-lg"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Working Days */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">أيام العمل</h3>
+            </div>
+
+            <p className="text-sm text-muted-foreground">اختر الأيام التي يعمل فيها الطبيب</p>
+
+            <div className="space-y-2">
+              {weekDays.map((day) => {
+                const isEnabled = isDayEnabled(day.key)
+
+                return (
+                  <div
+                    key={day.key}
+                    className={`
+                      flex items-center justify-between p-4 rounded-lg border-2 
+                      transition-all cursor-pointer hover:shadow-md
+                      ${
+                        isEnabled
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border bg-background hover:border-primary/30"
+                      }
+                    `}
+                    onClick={() => toggleDay(day.key)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`
+                          w-6 h-6 rounded-md border-2 flex items-center justify-center
+                          transition-all
+                          ${isEnabled ? "border-primary bg-primary" : "border-muted-foreground/30"}
+                        `}
+                      >
+                        {isEnabled && <Check className="h-4 w-4 text-primary-foreground" />}
+                      </div>
+                      <div>
+                        <p className="font-medium">{day.label}</p>
+                        <p className="text-xs text-muted-foreground">{day.nameEn}</p>
+                      </div>
+                    </div>
+
+                    {isEnabled && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-primary">
+                          {formData.startTime || "09:00"} - {formData.endTime || "17:00"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Selected Days Summary */}
+            {formData.workingDays && formData.workingDays.length > 0 && (
+              <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <CheckCircle className="h-5 w-5 text-primary" />
+                <p className="text-sm">
+                  <span className="font-semibold">{formData.workingDays.length}</span> أيام محددة
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t bg-muted/20">
+          <Button variant="outline" onClick={onClose}>
+            إلغاء
+          </Button>
+          <Button onClick={onClose} className="gap-2">
+            <Save className="h-4 w-4" />
+            حفظ الإعدادات
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProviderModalForm({
   isEdit,
   formData,
@@ -139,6 +582,62 @@ function ProviderModalForm({
     if (trimmed) {
       setFormData((prev) => ({ ...prev, specialty: trimmed }))
     }
+  }
+
+  // Availability helpers
+  const makeEmptyPerDay = () => {
+    const obj: Record<string, { startTime?: string; endTime?: string; enabled?: boolean }> = {}
+    WEEK_DAYS.forEach((d) => (obj[d] = { startTime: "", endTime: "", enabled: false }))
+    return obj
+  }
+
+  const toggleDay = (day: string) => {
+    setFormData((prev) => {
+      const perDay = { ...(prev.perDayAvailability || {}) }
+      const current = perDay[day] || { startTime: "", endTime: "", enabled: false }
+      current.enabled = !current.enabled
+      perDay[day] = current
+      const days = current.enabled
+        ? [...new Set([...(prev.days || []), day])]
+        : (prev.days || []).filter((d) => d !== day)
+      return { ...prev, perDayAvailability: perDay, days }
+    })
+  }
+
+  const setPerDayTime = (day: string, field: "startTime" | "endTime", value: string) => {
+    setFormData((prev) => {
+      const perDay = { ...(prev.perDayAvailability || {}) }
+      const current = perDay[day] || { startTime: "", endTime: "", enabled: false }
+      current[field] = value
+      perDay[day] = current
+      return { ...prev, perDayAvailability: perDay }
+    })
+  }
+
+  // Removed per-day UI; helper functions above are no longer used. Keeping definitions
+  // removed to clean up the module.
+
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false)
+
+  const handleOpenAvailabilityModal = () => {
+    setFormData((prev) => ({
+      ...prev,
+      // Initialize workingDays from the existing days array or default to all days if empty
+      workingDays: prev.days && prev.days.length > 0 ? prev.days : WEEK_DAYS.map((d) => d.toLowerCase()),
+      // Ensure startTime and endTime are set for the modal
+      startTime: prev.startTime || "09:00",
+      endTime: prev.endTime || "17:00",
+    }))
+    setIsAvailabilityModalOpen(true)
+  }
+
+  const handleSaveAvailabilitySettings = () => {
+    setFormData((prev) => ({
+      ...prev,
+      // The workingDays and startTime/endTime are already updated in AvailabilityModal
+      // We just need to close the modal
+    }))
+    setIsAvailabilityModalOpen(false)
   }
 
   return (
@@ -268,14 +767,65 @@ function ProviderModalForm({
             </div>
           </div>
 
+          {/* Availability Section (Old Component) */}
           <div>
-            <label className="block text-sm font-medium mb-1">المؤهلات (افصل بفاصلة)</label>
-            <Input
-              value={formData.qualifications}
-              onChange={(e) => setFormData((prev) => ({ ...prev, qualifications: e.target.value }))}
-              placeholder="مثال: بكالوريوس طب, ماجستير جراحة"
-            />
+            <label className="block text-sm font-medium mb-2">مواعيد التوفر</label>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs mb-1">تاريخ البدء</label>
+                <Input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1">تاريخ الانتهاء</label>
+                <Input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1">وقت البدء</label>
+                <Input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1">وقت الانتهاء</label>
+                <Input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* 'أيام الأسبوع' per-day rows removed as requested */}
           </div>
+
+          {/* Button to open the new AvailabilityModal */}
+          <div className="mt-4">
+            <Button
+              type="button"
+              onClick={handleOpenAvailabilityModal}
+              variant="outline"
+              className="w-full bg-transparent"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              إدارة تفاصيل أوقات العمل
+            </Button>
+          </div>
+
+          {/* New Availability Section Component */}
+          <AvailabilitySection formData={formData} setFormData={setFormData} />
+
+          {/* The following fields were removed as per user's request */}
+          {/* الحقول "رابط الصورة الشخصية" و"المؤهلات" أُزيلت بناءً على طلب المستخدم */}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -338,7 +888,7 @@ function ProviderModalForm({
               >
                 <option value="">بدون عيادة</option>
                 {clinics.map((clinic) => (
-                  <option key={clinic._id} value={clinic._id}>
+                  <option key={clinic._id || (clinic as any).id} value={clinic._id || (clinic as any).id}>
                     {clinic.name}
                   </option>
                 ))}
@@ -353,7 +903,7 @@ function ProviderModalForm({
               >
                 <option value="">بدون مستشفى</option>
                 {hospitals.map((hospital) => (
-                  <option key={hospital._id} value={hospital._id}>
+                  <option key={hospital._id || (hospital as any).id} value={hospital._id || (hospital as any).id}>
                     {hospital.name}
                   </option>
                 ))}
@@ -420,6 +970,15 @@ function ProviderModalForm({
           </div>
         </div>
       </div>
+
+      {/* Render the AvailabilityModal if it's open */}
+      {isAvailabilityModalOpen && (
+        <AvailabilityModal
+          formData={formData}
+          setFormData={setFormData}
+          onClose={handleSaveAvailabilitySettings} // Use the save/close handler here
+        />
+      )}
     </div>
   )
 }
@@ -449,7 +1008,7 @@ export default function ProvidersPage() {
     specialty: "",
     customSpecialty: "",
     subSpecialties: "",
-    qualifications: "",
+
     experience: "",
     consultationFee: "",
     followUpFee: "",
@@ -463,6 +1022,23 @@ export default function ProvidersPage() {
     isVerified: false,
     offersHomeVisit: false,
     offersOnlineConsultation: false,
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+    days: [],
+    perDayAvailability: WEEK_DAYS.reduce(
+      (acc, d) => ({ ...acc, [d]: { startTime: "", endTime: "", enabled: false } }),
+      {},
+    ),
+    // Initialize new availability fields
+    defaultScheduleEnabled: true,
+    defaultStartTime: "09:00",
+    defaultEndTime: "17:00",
+    slotDuration: 30,
+    customDays: {},
+    // Initialize redesigned availability fields
+    workingDays: [],
   })
 
   const titles = ["طبيب عام", "أخصائي", "استشاري", "أستاذ دكتور", "مدرس", "معيد"]
@@ -477,7 +1053,17 @@ export default function ProvidersPage() {
       const result = await response.json()
 
       if (result.success) {
-        setProviders(result.providers || result.data || [])
+        // Normalize id field to _id so UI can rely on _id
+        const providersData = (result.providers || result.data || []).map((p: any) => ({
+          ...p,
+          _id: p._id || p.id,
+          // ensure we expose image under profileImage used by the UI
+          profileImage: p.image || p.profileImage || `/placeholder.svg?height=200&width=200&query=doctor ${p.gender}`,
+          // preserve isActive when provided; default true for safety
+          isActive: typeof p.isActive === "boolean" ? p.isActive : true,
+          qualifications: p.qualifications || [],
+        }))
+        setProviders(providersData)
       } else {
         showAlert(result.error || "حدث خطأ أثناء جلب الأطباء", "error")
         setProviders([])
@@ -495,7 +1081,8 @@ export default function ProvidersPage() {
       const response = await fetch("/api/clinics?active=true")
       const result = await response.json()
       if (result.success) {
-        setClinics(result.clinics || result.data || [])
+        const clinicsData = (result.clinics || result.data || []).map((c: any) => ({ ...c, _id: c._id || c.id }))
+        setClinics(clinicsData)
       } else {
         setClinics([])
       }
@@ -510,7 +1097,8 @@ export default function ProvidersPage() {
       const response = await fetch("/api/hospitals?active=true")
       const result = await response.json()
       if (result.success) {
-        setHospitals(result.hospitals || result.data || [])
+        const hospitalsData = (result.hospitals || result.data || []).map((h: any) => ({ ...h, _id: h._id || h.id }))
+        setHospitals(hospitalsData)
       } else {
         setHospitals([])
       }
@@ -541,7 +1129,6 @@ export default function ProvidersPage() {
       specialty: "",
       customSpecialty: "",
       subSpecialties: "",
-      qualifications: "",
       experience: "",
       consultationFee: "",
       followUpFee: "",
@@ -555,6 +1142,23 @@ export default function ProvidersPage() {
       isVerified: false,
       offersHomeVisit: false,
       offersOnlineConsultation: false,
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
+      days: [],
+      perDayAvailability: WEEK_DAYS.reduce(
+        (acc, d) => ({ ...acc, [d]: { startTime: "", endTime: "", enabled: false } }),
+        {},
+      ),
+      // Initialize new availability fields
+      defaultScheduleEnabled: true,
+      defaultStartTime: "09:00",
+      defaultEndTime: "17:00",
+      slotDuration: 30,
+      customDays: {},
+      // Initialize redesigned availability fields
+      workingDays: [],
     })
     setShowAddModal(true)
   }
@@ -563,6 +1167,7 @@ export default function ProvidersPage() {
     setEditingProvider(provider)
     const specialtyValue =
       typeof provider.specialty === "string" ? provider.specialty : (provider.specialty as any)?.name || ""
+    const availability = (provider as any).availability || {}
 
     setFormData({
       name: provider.name,
@@ -573,41 +1178,61 @@ export default function ProvidersPage() {
       specialty: specialtyValue,
       customSpecialty: MEDICAL_SPECIALTIES.includes(specialtyValue) ? "" : specialtyValue,
       subSpecialties: provider.subSpecialties?.join(", ") || "",
-      qualifications: provider.qualifications?.join(", ") || "",
+
       experience: provider.experience?.toString() || "",
       consultationFee: provider.consultationFee?.toString() || "",
       followUpFee: provider.followUpFee?.toString() || "",
       homeVisitFee: provider.homeVisitFee?.toString() || "",
       phone: provider.phone || "",
       email: provider.email || "",
-      clinicId: provider.clinic?._id || "",
-      hospitalId: provider.hospital?._id || "",
-      isActive: provider.isActive,
+      clinicId: provider.clinic?._id || (typeof provider.clinic === "string" ? provider.clinic : "") || "",
+      hospitalId: provider.hospital?._id || (typeof provider.hospital === "string" ? provider.hospital : "") || "",
+      isActive: typeof provider.isActive === "boolean" ? provider.isActive : true,
       isFeatured: provider.isFeatured,
       isVerified: provider.isVerified,
       offersHomeVisit: provider.offersHomeVisit,
       offersOnlineConsultation: provider.offersOnlineConsultation,
+      // availability
+      startDate: availability.startDate || "",
+      endDate: availability.endDate || "",
+      startTime: availability.startTime || "",
+      endTime: availability.endTime || "",
+      days: availability.days || [],
+      perDayAvailability:
+        availability.perDay ||
+        WEEK_DAYS.reduce((acc, d) => ({ ...acc, [d]: { startTime: "", endTime: "", enabled: false } }), {}),
+      // Populate new availability fields
+      defaultScheduleEnabled: availability.defaultScheduleEnabled ?? true,
+      defaultStartTime: availability.defaultStartTime || "09:00",
+      defaultEndTime: availability.defaultEndTime || "17:00",
+      slotDuration: availability.slotDuration || 30,
+      customDays: availability.customDays || {},
+      // Populate redesigned availability fields
+      workingDays: availability.workingDays || provider.days || [], // Assuming provider.days might contain this info
     })
     setShowEditModal(true)
   }
 
   const handleSaveProvider = async () => {
+    // validate before sending
+    if (!validateFormData()) return
+
     try {
       setSaving(true)
       const payload = {
-        name: formData.name,
-        nameEn: formData.nameEn,
+        // send both Arabic and English fields expected by the API
+        name: formData.nameEn || formData.name,
+        nameAr: formData.name,
         title: formData.title,
+        titleAr: formData.title,
         bio: formData.bio,
-        profileImage: formData.profileImage,
-        specialty: formData.specialty, // إرسال التخصص كـ string
+        image: formData.profileImage,
+        // send both specialty/specialtyAr (API expects both)
+        specialty: formData.specialty,
+        specialtyAr: formData.specialty,
         subSpecialties: formData.subSpecialties
           .split(",")
           .map((s) => s.trim())
-          .filter(Boolean),
-        qualifications: formData.qualifications
-          .split(",")
-          .map((q) => q.trim())
           .filter(Boolean),
         experience: formData.experience ? Number.parseInt(formData.experience) : 0,
         consultationFee: Number.parseInt(formData.consultationFee),
@@ -615,13 +1240,35 @@ export default function ProvidersPage() {
         homeVisitFee: formData.homeVisitFee ? Number.parseInt(formData.homeVisitFee) : undefined,
         phone: formData.phone,
         email: formData.email,
-        clinic: formData.clinicId || undefined,
-        hospital: formData.hospitalId || undefined,
+        clinicId: formData.clinicId || undefined,
+        hospitalId: formData.hospitalId || undefined,
+        // API requires gender - set default if not provided
+        gender: (formData as any).gender || "male",
         isActive: formData.isActive,
         isFeatured: formData.isFeatured,
         isVerified: formData.isVerified,
-        offersHomeVisit: formData.offersHomeVisit,
-        offersOnlineConsultation: formData.offersOnlineConsultation,
+        availableForHomeVisit: formData.offersHomeVisit,
+        availableForOnline: formData.offersOnlineConsultation,
+        // availability
+        availability: {
+          startDate: formData.startDate || undefined,
+          endDate: formData.endDate || undefined,
+          startTime: formData.startTime || undefined,
+          endTime: formData.endTime || undefined,
+          days: formData.days && formData.days.length ? formData.days : undefined,
+          perDay:
+            formData.perDayAvailability && Object.keys(formData.perDayAvailability).length
+              ? formData.perDayAvailability
+              : undefined,
+          // send new availability fields
+          defaultScheduleEnabled: formData.defaultScheduleEnabled,
+          defaultStartTime: formData.defaultStartTime,
+          defaultEndTime: formData.defaultEndTime,
+          slotDuration: formData.slotDuration,
+          customDays: formData.customDays,
+          // send redesigned availability fields
+          workingDays: formData.workingDays,
+        },
       }
 
       const response = await fetch("/api/providers", {
@@ -652,22 +1299,25 @@ export default function ProvidersPage() {
       return
     }
 
+    // validate before sending
+    if (!validateFormData()) return
+
     try {
       setSaving(true)
       const payload = {
-        name: formData.name,
-        nameEn: formData.nameEn,
+        // send both Arabic and English fields expected by the API
+        name: formData.nameEn || formData.name,
+        nameAr: formData.name,
         title: formData.title,
+        titleAr: formData.title,
         bio: formData.bio,
-        profileImage: formData.profileImage,
-        specialty: formData.specialty, // إرسال التخصص كـ string
+        image: formData.profileImage,
+        // send both specialty/specialtyAr (API expects both)
+        specialty: formData.specialty,
+        specialtyAr: formData.specialty,
         subSpecialties: formData.subSpecialties
           .split(",")
           .map((s) => s.trim())
-          .filter(Boolean),
-        qualifications: formData.qualifications
-          .split(",")
-          .map((q) => q.trim())
           .filter(Boolean),
         experience: formData.experience ? Number.parseInt(formData.experience) : 0,
         consultationFee: formData.consultationFee ? Number.parseInt(formData.consultationFee) : 0,
@@ -675,13 +1325,31 @@ export default function ProvidersPage() {
         homeVisitFee: formData.homeVisitFee ? Number.parseInt(formData.homeVisitFee) : undefined,
         phone: formData.phone,
         email: formData.email,
-        clinic: formData.clinicId || undefined,
-        hospital: formData.hospitalId || undefined,
+        clinicId: formData.clinicId || undefined,
+        hospitalId: formData.hospitalId || undefined,
+        // API requires gender - set default if not provided
+        gender: (formData as any).gender || "male",
         isActive: formData.isActive,
         isFeatured: formData.isFeatured,
         isVerified: formData.isVerified,
-        offersHomeVisit: formData.offersHomeVisit,
-        offersOnlineConsultation: formData.offersOnlineConsultation,
+        availableForHomeVisit: formData.offersHomeVisit,
+        availableForOnline: formData.offersOnlineConsultation,
+        // availability
+        availability: {
+          startDate: formData.startDate || undefined,
+          endDate: formData.endDate || undefined,
+          startTime: formData.startTime || undefined,
+          endTime: formData.endTime || undefined,
+          days: formData.days && formData.days.length ? formData.days : undefined,
+          // send new availability fields
+          defaultScheduleEnabled: formData.defaultScheduleEnabled,
+          defaultStartTime: formData.defaultStartTime,
+          defaultEndTime: formData.defaultEndTime,
+          slotDuration: formData.slotDuration,
+          customDays: formData.customDays,
+          // send redesigned availability fields
+          workingDays: formData.workingDays,
+        },
       }
 
       const response = await fetch(`/api/providers/${editingProvider._id}`, {
@@ -726,6 +1394,32 @@ export default function ProvidersPage() {
     } catch (error) {
       showAlert("حدث خطأ أثناء الاتصال بالخادم", "error")
     }
+  }
+
+  // دالة التحقق من الحقول المطلوبة في نموذج الطبيب
+  const validateFormData = (): boolean => {
+    const required = [
+      { key: "name", label: "اسم الطبيب" },
+      { key: "title", label: "اللقب" },
+      { key: "specialty", label: "التخصص" },
+      { key: "consultationFee", label: "سعر الكشف" },
+    ]
+
+    for (const field of required) {
+      const val = (formData as any)[field.key]
+      if (val === undefined || val === null || String(val).trim() === "") {
+        showAlert(`حقل ${field.label} مطلوب`, "error")
+        return false
+      }
+    }
+
+    // ensure consultationFee is a number
+    if (Number.isNaN(Number.parseInt(formData.consultationFee || ""))) {
+      showAlert("حقل سعر الكشف غير صحيح", "error")
+      return false
+    }
+
+    return true
   }
 
   return (
@@ -804,7 +1498,7 @@ export default function ProvidersPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {providers.map((provider) => (
-            <Card key={provider._id} className="overflow-hidden">
+            <Card key={provider._id || (provider as any).id} className="overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-16 h-16 rounded-full overflow-hidden bg-muted flex-shrink-0">
@@ -832,6 +1526,31 @@ export default function ProvidersPage() {
                     </div>
 
                     <p className="text-sm text-muted-foreground">{provider.title}</p>
+
+                    {((typeof provider.phone === "string" && provider.phone.trim() !== "") ||
+                      (Array.isArray(provider.phone) && provider.phone.length > 0)) && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        <Phone className="w-3 h-3" />
+                        <span dir="ltr">
+                          {typeof provider.phone === "string" ? provider.phone.split(",")[0].trim() : provider.phone[0]}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const num = provider.phone
+                              ? typeof provider.phone === "string"
+                                ? provider.phone.split(",")[0].trim()
+                                : provider.phone[0]
+                              : ""
+                            if (navigator.clipboard && num) navigator.clipboard.writeText(num)
+                            showAlert("تم نسخ رقم الهاتف", "success")
+                          }}
+                          className="text-xs text-primary underline ml-2"
+                        >
+                          نسخ
+                        </button>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                       <Briefcase className="w-3 h-3" />
@@ -873,7 +1592,7 @@ export default function ProvidersPage() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteProvider(provider._id)}
+                    onClick={() => handleDeleteProvider(provider._id || (provider as any).id)}
                     className="p-2 hover:bg-red-50 rounded-lg text-muted-foreground hover:text-red-600"
                   >
                     <Trash2 className="w-4 h-4" />

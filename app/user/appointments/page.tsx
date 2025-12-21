@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -103,6 +104,7 @@ export default function AppointmentsPage() {
   })
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingNumber, setBookingNumber] = useState("")
+  const router = useRouter()
 
   // Generate calendar days for current month
   const generateCalendarDays = () => {
@@ -572,7 +574,7 @@ export default function AppointmentsPage() {
         >
           حجز موعد جديد
         </Button>
-        <Button>عرض حجوزاتي</Button>
+        <Button onClick={() => router.push('/')}>الصفحة الرئيسية</Button>
       </div>
     </div>
   )

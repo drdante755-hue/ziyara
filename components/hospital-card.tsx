@@ -28,6 +28,7 @@ interface Hospital {
   rating: number
   reviewsCount: number
   isFeatured: boolean
+  isActive?: boolean
 }
 
 interface HospitalCardProps {
@@ -57,6 +58,11 @@ export default function HospitalCard({ hospital }: HospitalCardProps) {
 
           {/* Badges */}
           <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10">
+            {hospital.isActive && (
+              <Badge className="bg-emerald-500 hover:bg-emerald-500 text-white text-[10px] px-2 py-0.5 font-bold rounded-md shadow-sm">
+                نشط
+              </Badge>
+            )}
             {hospital.isFeatured && (
               <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-[10px] px-2 py-0.5 font-bold rounded-md shadow-sm">
                 مميز

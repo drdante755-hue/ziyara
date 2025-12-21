@@ -5,6 +5,7 @@ import dbConnect from "@/lib/mongodb"
 import Booking from "@/models/Booking"
 import AvailabilitySlot from "@/models/AvailabilitySlot"
 import Provider from "@/models/Provider"
+import Clinic from "@/models/Clinic"
 import User from "@/models/User"
 import PaymentTransaction from "@/models/PaymentTransaction"
 
@@ -156,17 +157,66 @@ export async function POST(request: NextRequest) {
       notes,
       paymentMethod,
       discountCode,
+      fallbackSlot,
     } = body
 
-    if (!slotId || !patientName || !patientPhone || !paymentMethod) {
+    if (!patientName || !patientPhone || !paymentMethod) {
       return NextResponse.json({ success: false, error: "البيانات المطلوبة غير مكتملة" }, { status: 400 })
     }
 
-    const slot = await AvailabilitySlot.findOneAndUpdate(
-      { _id: slotId, status: "available" },
-      { status: "booked" },
-      { new: true },
-    )
+    let slot: any = null
+
+    // Try to use provided slotId if valid ObjectId
+    if (slotId && typeof slotId === "string") {
+      const mongoose = (await import("mongoose")).default
+      if (mongoose.Types.ObjectId.isValid(slotId)) {
+        slot = await AvailabilitySlot.findOneAndUpdate(
+          { _id: slotId, status: "available" },
+          { status: "booked" },
+          { new: true },
+        )
+      }
+    }
+
+    // If no valid slot found, try to create one from fallbackSlot details
+    if (!slot && fallbackSlot && fallbackSlot.providerId) {
+      // create a booked slot so booking can reference it
+      const { providerId, date, startTime, endTime, type, price } = fallbackSlot
+      const duration = (() => {
+        try {
+          const [sh, sm] = (startTime || "09:00").split(":").map((s: string) => parseInt(s))
+          const [eh, em] = (endTime || "17:00").split(":").map((s: string) => parseInt(s))
+          const start = sh * 60 + sm
+          const end = eh * 60 + em
+          const d = end - start
+          return d > 0 ? d : 30
+        } catch (e) {
+          return 30
+        }
+      })()
+
+      // Ensure provider exists
+      const provider = await Provider.findById(providerId)
+      if (!provider) {
+        return NextResponse.json({ success: false, error: "الطبيب غير موجود" }, { status: 404 })
+      }
+
+      const newSlot = new AvailabilitySlot({
+        providerId,
+        date: new Date(date),
+        startTime,
+        endTime,
+        duration,
+        type: type || "clinic",
+        status: "booked",
+        price: price ?? provider.consultationFee ?? 0,
+        clinicId: provider.clinicId || undefined,
+        hospitalId: provider.hospitalId || undefined,
+      })
+
+      await newSlot.save()
+      slot = newSlot
+    }
 
     if (!slot) {
       return NextResponse.json({ success: false, error: "هذا الموعد غير متاح حالياً أو تم حجزه" }, { status: 400 })
@@ -175,7 +225,10 @@ export async function POST(request: NextRequest) {
     // جلب الطبيب
     const provider = await Provider.findById(slot.providerId)
     if (!provider) {
-      await AvailabilitySlot.findByIdAndUpdate(slotId, { status: "available" })
+      // if we created a fallback slot, remove or reset it
+      try {
+        if (slot._id) await AvailabilitySlot.findByIdAndUpdate(slot._id, { status: "available" })
+      } catch (e) {}
       return NextResponse.json({ success: false, error: "الطبيب غير موجود" }, { status: 404 })
     }
 
@@ -193,8 +246,21 @@ export async function POST(request: NextRequest) {
     // التحقق من رصيد المحفظة إذا كان الدفع بالمحفظة
     if (paymentMethod === "wallet") {
       if (user.walletBalance < totalPrice) {
-        await AvailabilitySlot.findByIdAndUpdate(slotId, { status: "available" })
+        try {
+          if (slot && slot._id) await AvailabilitySlot.findByIdAndUpdate(slot._id, { status: "available" })
+        } catch (e) {}
         return NextResponse.json({ success: false, error: "رصيد المحفظة غير كافٍ" }, { status: 400 })
+      }
+    }
+
+    // determine booking address: prefer user-provided address, fallback to clinic address
+    let bookingAddress = address
+    if (!bookingAddress && slot.clinicId) {
+      try {
+        const clinic = await Clinic.findById(slot.clinicId)
+        if (clinic && (clinic as any).address) bookingAddress = (clinic as any).address
+      } catch (e) {
+        // ignore
       }
     }
 
@@ -213,7 +279,7 @@ export async function POST(request: NextRequest) {
       startTime: slot.startTime,
       endTime: slot.endTime,
       type: slot.type,
-      address,
+      address: bookingAddress,
       symptoms,
       notes,
       price,
@@ -231,7 +297,16 @@ export async function POST(request: NextRequest) {
     slot.bookingId = booking._id
     await slot.save()
 
+    const makeTransactionId = () => {
+      const now = new Date()
+      const year = now.getFullYear().toString().slice(-2)
+      const month = (now.getMonth() + 1).toString().padStart(2, "0")
+      const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0")
+      return `TXN${year}${month}${random}`
+    }
+
     const paymentTransaction = new PaymentTransaction({
+      transactionId: makeTransactionId(),
       bookingId: booking._id,
       userId: user._id,
       amount: totalPrice,

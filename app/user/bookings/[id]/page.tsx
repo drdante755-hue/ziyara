@@ -136,7 +136,7 @@ export default function BookingDetailsPage({ params }: { params: Promise<{ id: s
 
   const handleSubmitReview = async () => {
     if (rating === 0) {
-      toast.error("يرجى اختيار التق��يم")
+      toast.error("يرجى اختيار التقيم")
       return
     }
 
@@ -197,10 +197,10 @@ export default function BookingDetailsPage({ params }: { params: Promise<{ id: s
       {/* Header */}
       <div className="bg-primary text-primary-foreground px-4 py-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-primary-foreground">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/user/home')} className="text-primary-foreground">
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="font-semibold">تفاصيل الحجز</h1>
             <p className="text-sm text-primary-foreground/80">#{booking.bookingNumber}</p>
           </div>

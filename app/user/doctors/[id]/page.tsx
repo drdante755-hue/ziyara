@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ArrowRight,
   Star,
@@ -13,10 +13,12 @@ import {
   Clock,
   Video,
   Home,
-  CheckCircle,
   GraduationCap,
   Calendar,
-  Loader2,
+  Users,
+  Shield,
+  Award,
+  Languages,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -56,6 +58,35 @@ interface Review {
   createdAt: string
 }
 
+function DoctorProfileSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="bg-background border-b px-4 py-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+      </div>
+
+      <div className="px-4 py-6 space-y-6">
+        <div className="flex gap-6">
+          <Skeleton className="w-32 h-32 rounded-full" />
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DoctorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -71,9 +102,22 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
   const fetchDoctor = async () => {
     try {
       const res = await fetch(`/api/providers/${id}`)
+      const contentType = res.headers.get("content-type") || ""
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("Error fetching doctor, server returned:", text)
+        return
+      }
+      if (!contentType.includes("application/json")) {
+        const text = await res.text()
+        console.error("Expected JSON from /api/providers but received:", text)
+        return
+      }
       const data = await res.json()
       if (data.success) {
         setDoctor(data.provider)
+      } else {
+        console.error("Provider API returned error:", data)
       }
     } catch (error) {
       console.error("Error fetching doctor:", error)
@@ -84,10 +128,29 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
 
   const fetchReviews = async () => {
     try {
-      const res = await fetch(`/api/reviews?providerId=${id}&limit=5`)
+      const url = `/api/reviews?providerId=${id}&limit=5`
+      const res = await fetch(url)
+      const contentType = res.headers.get("content-type") || ""
+      if (!res.ok) {
+        if (contentType.includes("application/json")) {
+          const err = await res.json()
+          console.error("Reviews API returned error:", err)
+        } else {
+          console.error(`Error fetching reviews: ${res.status} ${res.statusText} for ${url}`)
+        }
+        return
+      }
+
+      if (!contentType.includes("application/json")) {
+        console.warn(`Expected JSON from ${url} but got '${contentType}'. Skipping reviews.`)
+        return
+      }
+
       const data = await res.json()
       if (data.success) {
         setReviews(data.reviews)
+      } else {
+        console.error("Reviews API returned error:", data)
       }
     } catch (error) {
       console.error("Error fetching reviews:", error)
@@ -95,18 +158,22 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
+    return <DoctorProfileSkeleton />
   }
 
   if (!doctor) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">الطبيب غير موجود</p>
-        <Button onClick={() => router.back()}>العودة</Button>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-semibold mb-2">الطبيب غير موجود</h2>
+          <p className="text-sm text-muted-foreground mb-6">لم نتمكن من العثور على معلومات هذا الطبيب</p>
+          <Button onClick={() => router.back()} size="lg" variant="outline">
+            العودة للقائمة
+          </Button>
+        </div>
       </div>
     )
   }
@@ -114,207 +181,226 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
   const placeholderImage = doctor.gender === "female" ? "/female-doctor-hijab.jpg" : "/male-doctor.png"
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       {/* Header */}
-      <div className="bg-primary text-primary-foreground px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-primary-foreground">
+      <header className="sticky top-0 bg-background/95 backdrop-blur-sm border-b z-10">
+        <div className="px-4 py-4">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <h1 className="font-semibold">الملف الشخصي</h1>
         </div>
-      </div>
+      </header>
 
-      {/* Doctor Info */}
-      <div className="px-4 -mt-0">
-        <Card className="mt-4">
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              <div className="relative">
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted">
-                  <img
-                    src={doctor.image || placeholderImage}
-                    alt={doctor.nameAr}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                {doctor.isVerified && (
-                  <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
-                    <CheckCircle className="w-4 h-4" />
-                  </div>
-                )}
+      <div className="px-4 py-6">
+        {/* Doctor Profile Header */}
+        <div className="flex gap-6 mb-8">
+          <div className="relative">
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-muted border-4 border-background shadow-xl">
+              <img src={doctor.image || placeholderImage} alt={doctor.nameAr} className="w-full h-full object-cover" />
+            </div>
+            {doctor.isVerified && (
+              <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-2 shadow-lg border-4 border-background">
+                <Shield className="w-4 h-4" />
               </div>
+            )}
+          </div>
 
-              <div className="flex-1">
-                <h2 className="text-xl font-bold">
-                  {doctor.titleAr} {doctor.nameAr}
-                </h2>
-                <p className="text-primary font-medium">{doctor.specialtyAr}</p>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold mb-1">
+              {doctor.titleAr} {doctor.nameAr}
+            </h1>
+            <p className="text-lg text-muted-foreground mb-3">{doctor.specialtyAr}</p>
 
-                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium text-foreground">{doctor.rating.toFixed(1)}</span>
-                    <span>({doctor.reviewsCount})</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{doctor.experience} سنة</span>
-                  </div>
-                </div>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1.5">
+                <Star className="w-4 h-4 fill-primary text-primary" />
+                <span className="font-semibold">{doctor.rating.toFixed(1)}</span>
+                <span className="text-muted-foreground">({doctor.reviewsCount})</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>{doctor.experience} سنة</span>
               </div>
             </div>
 
-            {/* Services */}
-            <div className="flex flex-wrap gap-2 mt-4">
-              {doctor.availableForOnline && (
-                <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                  <Video className="w-3 h-3 ml-1" />
-                  أونلاين - {doctor.onlineConsultationFee} ج.م
-                </Badge>
-              )}
-              {doctor.availableForHomeVisit && (
-                <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
-                  <Home className="w-3 h-3 ml-1" />
-                  زيارة منزلية - {doctor.homeVisitFee} ج.م
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            {doctor.totalPatients > 0 && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                <Users className="w-3.5 h-3.5" />
+                <span>{doctor.totalPatients}+ مريض</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="about" className="mt-4 px-4">
-        <TabsList className="w-full">
-          <TabsTrigger value="about" className="flex-1">
-            عن الطبيب
-          </TabsTrigger>
-          <TabsTrigger value="reviews" className="flex-1">
-            التقييمات
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="about" className="mt-4 space-y-4">
-          {/* Bio */}
-          {doctor.bioAr && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">نبذة</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{doctor.bioAr}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Education */}
-          {doctor.education && doctor.education.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <GraduationCap className="w-5 h-5 text-primary" />
-                  المؤهلات العلمية
-                </h3>
-                <div className="space-y-3">
-                  {doctor.education.map((edu, index) => (
-                    <div key={index} className="text-sm">
-                      <p className="font-medium">{edu.degree}</p>
-                      <p className="text-muted-foreground">
-                        {edu.institution} - {edu.year}
-                      </p>
+        {/* Service Options */}
+        {(doctor.availableForOnline || doctor.availableForHomeVisit) && (
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {doctor.availableForOnline && (
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex flex-col items-center text-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Video className="w-6 h-6 text-primary" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Working At */}
-          {doctor.workingAt && doctor.workingAt.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  أماكن العمل
-                </h3>
-                <div className="space-y-2">
-                  {doctor.workingAt.map((place, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm">
-                      <Badge variant="outline">{place.type === "clinic" ? "عيادة" : "مستشفى"}</Badge>
-                      <span>{place.name}</span>
+                    <div>
+                      <p className="text-sm font-medium">كشف أونلاين</p>
+                      <p className="text-lg font-bold text-primary">{doctor.onlineConsultationFee} ج.م</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {doctor.availableForHomeVisit && (
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex flex-col items-center text-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Home className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">زيارة منزلية</p>
+                      <p className="text-lg font-bold text-primary">{doctor.homeVisitFee} ج.م</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
-          {/* Languages */}
-          {doctor.languages && doctor.languages.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">اللغات</h3>
-                <div className="flex flex-wrap gap-2">
-                  {doctor.languages.map((lang, index) => (
-                    <Badge key={index} variant="secondary">
-                      {lang}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="reviews" className="mt-4">
-          {reviews.length > 0 ? (
+        {/* Education */}
+        {doctor.education && doctor.education.length > 0 && (
+          <section className="mb-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-primary" />
+              المؤهلات
+            </h2>
             <div className="space-y-3">
-              {reviews.map((review) => (
-                <Card key={review.id}>
+              {doctor.education.map((edu, index) => (
+                <Card key={index}>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{review.user.name}</span>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${
-                              i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(review.createdAt).toLocaleDateString("ar-EG")}
+                    <p className="font-semibold mb-1">{edu.degree}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {edu.institution} • {edu.year}
                     </p>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">لا توجد تقييمات بعد</div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </section>
+        )}
 
-      {/* Booking Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <span className="text-2xl font-bold text-primary">{doctor.consultationFee}</span>
-            <span className="text-muted-foreground mr-1">ج.م / الكشف</span>
-          </div>
-          {doctor.followUpFee && (
-            <span className="text-sm text-muted-foreground">المتابعة: {doctor.followUpFee} ج.م</span>
+        {/* Work Locations */}
+        {doctor.workingAt && doctor.workingAt.length > 0 && (
+          <section className="mb-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              أماكن العمل
+            </h2>
+            <div className="space-y-3">
+              {doctor.workingAt.map((place, index) => (
+                <Card key={index}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary">{place.type === "clinic" ? "عيادة" : "مستشفى"}</Badge>
+                      <span className="font-medium">{place.name}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Languages */}
+        {doctor.languages && doctor.languages.length > 0 && (
+          <section className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {doctor.languages.map((lang, index) => (
+                <Badge key={index} variant="outline" className="px-4 py-2 text-sm">
+                  {lang}
+                </Badge>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Reviews */}
+        <section className="mb-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Award className="w-5 h-5 text-primary" />
+            التقييمات ({doctor.reviewsCount})
+          </h2>
+
+          {reviews.length > 0 ? (
+            <div className="space-y-3">
+              {reviews.map((review) => (
+                <Card key={review.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                          {review.user.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{review.user.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(review.createdAt).toLocaleDateString("ar-EG", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${i < review.rating ? "fill-primary text-primary" : "text-muted"}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {review.comment && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Star className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground">لا توجد تقييمات بعد</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
+        </section>
+      </div>
+
+      {/* Fixed Bottom Booking Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">سعر الكشف</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold">{doctor.consultationFee}</span>
+              <span className="text-sm text-muted-foreground">ج.م</span>
+            </div>
+          </div>
+          <Link href={`/user/book/${doctor.id}`} className="flex-1">
+            <Button size="lg" className="w-full">
+              <Calendar className="w-5 h-5 ml-2" />
+              احجز موعد
+            </Button>
+          </Link>
         </div>
-        <Link href={`/user/book/${doctor.id}`}>
-          <Button className="w-full" size="lg">
-            <Calendar className="w-5 h-5 ml-2" />
-            احجز موعد
-          </Button>
-        </Link>
       </div>
     </div>
   )
