@@ -147,56 +147,56 @@ export default function LoginPage() {
     checkSessionAndRedirect()
   }, [session, router, hasRedirected])
 
-const handleGoogleSignIn = async () => {
-  setIsGoogleLoading(true)
-  setError("")
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true)
+    setError("")
 
-  try {
-    // 1️⃣ Check Google OAuth config (زي ما انت عامل)
-    let config
     try {
-      const configCheck = await fetch("/api/auth/check-google-config")
-      config = await configCheck.json()
-    } catch (configError) {
-      console.error("Error checking config:", configError)
-    }
-
-    if (config && !config.google?.configured) {
-      let errorMsg = "إعدادات Google OAuth غير مكتملة.\n\n"
-
-      if (config.google?.isPlaceholder) {
-        errorMsg += "⚠️ القيم الحالية في .env.local هي placeholder values.\n\n"
-        errorMsg += "يرجى:\n"
-        errorMsg += "1. الحصول على Google OAuth credentials من Google Cloud Console\n"
-        errorMsg += "2. استبدال القيم في ملف .env.local:\n"
-        errorMsg += "   GOOGLE_CLIENT_ID=your-actual-client-id\n"
-        errorMsg += "   GOOGLE_CLIENT_SECRET=your-actual-client-secret\n"
-        errorMsg += "3. إعادة تشغيل السيرفر\n"
-        errorMsg += "4. التحقق من الإعدادات في: /admin/check-env"
-      } else {
-        errorMsg += "يرجى:\n"
-        errorMsg += "1. إضافة GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET في ملف .env.local\n"
-        errorMsg += "2. إعادة تشغيل السيرفر\n"
-        errorMsg += "3. التحقق من الإعدادات في: /admin/check-env"
+      // 1️⃣ Check Google OAuth config (زي ما انت عامل)
+      let config
+      try {
+        const configCheck = await fetch("/api/auth/check-google-config")
+        config = await configCheck.json()
+      } catch (configError) {
+        console.error("Error checking config:", configError)
       }
 
-      setError(errorMsg)
-      setIsGoogleLoading(false)
-      return
-    }
+      if (config && !config.google?.configured) {
+        let errorMsg = "إعدادات Google OAuth غير مكتملة.\n\n"
 
-    // 2️⃣ ✅ الحل الصح: Redirect كامل (مش signIn)
-    window.location.href = "/api/auth/signin/google"
+        if (config.google?.isPlaceholder) {
+          errorMsg += "⚠️ القيم الحالية في .env.local هي placeholder values.\n\n"
+          errorMsg += "يرجى:\n"
+          errorMsg += "1. الحصول على Google OAuth credentials من Google Cloud Console\n"
+          errorMsg += "2. استبدال القيم في ملف .env.local:\n"
+          errorMsg += "   GOOGLE_CLIENT_ID=your-actual-client-id\n"
+          errorMsg += "   GOOGLE_CLIENT_SECRET=your-actual-client-secret\n"
+          errorMsg += "3. إعادة تشغيل السيرفر\n"
+          errorMsg += "4. التحقق من الإعدادات في: /admin/check-env"
+        } else {
+          errorMsg += "يرجى:\n"
+          errorMsg += "1. إضافة GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET في ملف .env.local\n"
+          errorMsg += "2. إعادة تشغيل السيرفر\n"
+          errorMsg += "3. التحقق من الإعدادات في: /admin/check-env"
+        }
 
-  } catch (err: any) {
-    console.error("Google Sign-In error:", err)
-    setError(
-      err?.message ||
+        setError(errorMsg)
+        setIsGoogleLoading(false)
+        return
+      }
+
+      // 2️⃣ ✅ الحل الصح: Redirect كامل (مش signIn)
+      window.location.href = "/api/auth/signin/google?mobileApp=true"
+
+    } catch (err: any) {
+      console.error("Google Sign-In error:", err)
+      setError(
+        err?.message ||
         "فشل تسجيل الدخول عبر Google. تأكد من إعداد Google OAuth بشكل صحيح."
-    )
-    setIsGoogleLoading(false)
+      )
+      setIsGoogleLoading(false)
+    }
   }
-}
 
 
   const handleSubmit = async (e: React.FormEvent) => {
