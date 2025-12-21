@@ -186,7 +186,8 @@ export default function LoginPage() {
       }
 
       // 2️⃣ ✅ الحل الصح: Redirect كامل (مش signIn)
-      window.location.href = "/api/auth/signin/google?mobileApp=true"
+      window.location.href = "/api/auth/signin/google?callbackUrl=/login?mobileApp=true"
+
 
     } catch (err: any) {
       console.error("Google Sign-In error:", err)
