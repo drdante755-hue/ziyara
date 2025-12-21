@@ -147,52 +147,12 @@ export default function LoginPage() {
     checkSessionAndRedirect()
   }, [session, router, hasRedirected])
 
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true)
-    setError("")
-    try {
-      let config
-      try {
-        const configCheck = await fetch("/api/auth/check-google-config")
-        config = await configCheck.json()
-      } catch (configError) {
-        console.error("Error checking config:", configError)
-      }
+  const handleGoogleSignIn = () => {
+    setIsGoogleLoading(true);
+    setError("");
+    window.location.href = "/api/auth/app/google";
+  };
 
-      if (config && !config.google?.configured) {
-        let errorMsg = "إعدادات Google OAuth غير مكتملة.\n\n"
-
-        if (config.google?.isPlaceholder) {
-          errorMsg += "⚠️ القيم الحالية في .env.local هي placeholder values.\n\n"
-          errorMsg += "يرجى:\n"
-          errorMsg += "1. الحصول على Google OAuth credentials من Google Cloud Console\n"
-          errorMsg += "2. استبدال القيم في ملف .env.local:\n"
-          errorMsg += "   GOOGLE_CLIENT_ID=your-actual-client-id\n"
-          errorMsg += "   GOOGLE_CLIENT_SECRET=your-actual-client-secret\n"
-          errorMsg += "3. إعادة تشغيل السيرفر (Ctrl+C ثم npm run dev)\n"
-          errorMsg += "4. التحقق من الإعدادات في: /admin/check-env"
-        } else {
-          errorMsg += "يرجى:\n"
-          errorMsg += "1. إضافة GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET في ملف .env.local\n"
-          errorMsg += "2. إعادة تشغيل السيرفر\n"
-          errorMsg += "3. التحقق من الإعدادات في: /admin/check-env"
-        }
-
-        setError(errorMsg)
-        setIsGoogleLoading(false)
-        return
-      }
-
-      await signIn("google", {
-        redirect: true,
-        callbackUrl: "/login",
-      })
-    } catch (err: any) {
-      console.error("Google Sign-In error:", err)
-      setError(err?.message || "فشل تسجيل الدخول عبر Google. تأكد من إعداد Google OAuth بشكل صحيح.")
-      setIsGoogleLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
