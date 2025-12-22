@@ -147,14 +147,15 @@ export default function LoginPage() {
     checkSessionAndRedirect()
   }, [session, router, hasRedirected])
 
-  const handleGoogleSignIn = () => {
+ const handleGoogleSignIn = () => {
   setIsGoogleLoading(true);
   setError("");
 
-  signIn("google", {
-    callbackUrl: "/auth/mobile-success",
-  });
+  window.location.href =
+    "/api/auth/signin/google?callbackUrl=" +
+    encodeURIComponent("com.firstapp.learnapk://oauth-redirect");
   };
+
 
 
 

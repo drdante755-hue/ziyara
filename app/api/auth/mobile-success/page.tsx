@@ -4,20 +4,21 @@ import { useEffect } from "react"
 
 export default function MobileSuccess() {
   useEffect(() => {
-    // يفتح التطبيق
-    window.location.href = "/api/auth/signin/google?callbackUrl=" +
-    encodeURIComponent("https://ziyara-tau.vercel.app/auth/mobile-success")
+    // رجوع للتطبيق عن طريق Deep Link
+    window.location.href = "com.firstapp.learnapk://oauth-redirect"
 
     // fallback لو التطبيق مش متسطب
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       window.location.href = "/"
-    }, 1500)
+    }, 2000)
+
+    return () => clearTimeout(timer)
   }, [])
 
   return (
     <div style={{ textAlign: "center", marginTop: 40 }}>
-      <h2>جاري تسجيل الدخول...</h2>
-      <p>سيتم تحويلك للتطبيق تلقائيًا</p>
+      <h2>تم تسجيل الدخول بنجاح</h2>
+      <p>يتم الرجوع للتطبيق...</p>
     </div>
   )
 }
