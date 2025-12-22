@@ -151,18 +151,9 @@ export default function LoginPage() {
   setIsGoogleLoading(true);
   setError("");
 
-  const isMobileApp =
-    typeof window !== "undefined" &&
-    /Android|iPhone/i.test(navigator.userAgent);
-
-  if (isMobileApp) {
-    // 👈 للموبايل
-    window.location.href =
-      "/api/auth/signin/google?callbackUrl=/auth/mobile-success";
-  } else {
-    // 👈 للويب العادي
-    signIn("google", { callbackUrl: "/" });
-  }
+  signIn("google", {
+    callbackUrl: "/auth/mobile-success",
+  });
   };
 
 
