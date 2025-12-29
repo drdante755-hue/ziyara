@@ -8,7 +8,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     await dbConnect()
     const { id } = await params
 
-    const clinic = await Clinic.findById(id).lean()
+    const clinic = await Clinic.findById(id).populate("medicalCenter", "name nameAr").lean()
 
     if (!clinic) {
       return NextResponse.json({ success: false, error: "العيادة غير موجودة" }, { status: 404 })
@@ -18,9 +18,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       success: true,
       clinic: {
         id: (clinic as any)._id.toString(),
+        _id: (clinic as any)._id.toString(),
         name: (clinic as any).name,
         nameAr: (clinic as any).nameAr,
         slug: (clinic as any).slug,
+        clinicType: (clinic as any).clinicType,
+        medicalCenter: (clinic as any).medicalCenter
+          ? {
+              _id: (clinic as any).medicalCenter._id.toString(),
+              name: (clinic as any).medicalCenter.name || (clinic as any).medicalCenter.nameAr,
+            }
+          : null,
         description: (clinic as any).description,
         descriptionAr: (clinic as any).descriptionAr,
         address: (clinic as any).address,
@@ -32,12 +40,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         logo: (clinic as any).logo,
         specialties: (clinic as any).specialties,
         workingHours: (clinic as any).workingHours,
-        rating: (clinic as any).rating,
-        reviewsCount: (clinic as any).reviewsCount,
+        rating: (clinic as any).rating || 0,
+        reviewsCount: (clinic as any).reviewsCount || 0,
         isActive: (clinic as any).isActive,
         isFeatured: (clinic as any).isFeatured,
         amenities: (clinic as any).amenities,
         insuranceAccepted: (clinic as any).insuranceAccepted,
+        slotDuration: (clinic as any).slotDuration,
+        startDate: (clinic as any).startDate,
+        endDate: (clinic as any).endDate,
+        defaultStartTime: (clinic as any).defaultStartTime,
+        defaultEndTime: (clinic as any).defaultEndTime,
       },
     })
   } catch (error) {
@@ -53,7 +66,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params
     const body = await request.json()
 
-    const clinic = await Clinic.findByIdAndUpdate(id, { $set: body }, { new: true }).lean()
+    if (body.medicalCenter === "") {
+      body.medicalCenter = undefined
+    }
+
+    const clinic = await Clinic.findByIdAndUpdate(id, { $set: body }, { new: true })
+      .populate("medicalCenter", "name nameAr")
+      .lean()
 
     if (!clinic) {
       return NextResponse.json({ success: false, error: "العيادة غير موجودة" }, { status: 404 })
@@ -63,8 +82,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       success: true,
       clinic: {
         id: (clinic as any)._id.toString(),
+        _id: (clinic as any)._id.toString(),
         name: (clinic as any).name,
         nameAr: (clinic as any).nameAr,
+        medicalCenter: (clinic as any).medicalCenter
+          ? {
+              _id: (clinic as any).medicalCenter._id.toString(),
+              name: (clinic as any).medicalCenter.name || (clinic as any).medicalCenter.nameAr,
+            }
+          : null,
+        slotDuration: (clinic as any).slotDuration,
+        startDate: (clinic as any).startDate,
+        endDate: (clinic as any).endDate,
+        defaultStartTime: (clinic as any).defaultStartTime,
+        defaultEndTime: (clinic as any).defaultEndTime,
       },
     })
   } catch (error) {

@@ -174,7 +174,7 @@ export default function MyBookingsPage() {
             <div className="text-center py-12">
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground mb-4">لا توجد حجوزات قادمة</p>
-              <Link href="/user/doctors">
+              <Link href="/user/clinics">
                 <Button>احجز موعد الآن</Button>
               </Link>
             </div>

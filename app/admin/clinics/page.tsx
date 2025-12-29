@@ -7,24 +7,18 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Edit2, Trash2, Search, X, Loader2, RefreshCw, Building2, MapPin, Phone } from "lucide-react"
+import { Plus, Edit2, Trash2, Search, X, Loader2, Building2, MapPin, Phone, Clock } from "lucide-react"
 
-interface Clinic {
-  _id?: string
-  id?: string
+interface IClinic {
+  _id: string
   name: string
+  nameAr?: string // Added nameAr to match model
   nameEn?: string
-  nameAr?: string
+  clinicType: "medical_center" | "private_clinic"
   description?: string
-  descriptionAr?: string
-  address?: string | {
-    street?: string
-    city: string
-    area?: string
-    governorate: string
-  }
-  city?: string
-  area?: string
+  address: string // Added address field
+  city: string
+  area: string
   governorate?: string
   phone: string | string[]
   email?: string
@@ -40,6 +34,9 @@ interface Clinic {
   reviewsCount: number
   isActive: boolean
   isFeatured: boolean
+  slotDuration?: number
+  defaultStartTime?: string
+  defaultEndTime?: string
 }
 
 type WorkingHour = {
@@ -51,9 +48,11 @@ type WorkingHour = {
 
 interface ClinicFormData {
   name: string
+  nameAr: string
   nameEn: string
+  clinicType: "medical_center" | "private_clinic"
   description: string
-  street: string
+  address: string
   city: string
   area: string
   governorate: string
@@ -65,6 +64,9 @@ interface ClinicFormData {
   images: string
   isActive: boolean
   isFeatured: boolean
+  slotDuration: number
+  defaultStartTime: string
+  defaultEndTime: string
 }
 
 const CLINIC_SPECIALTIES = [
@@ -143,6 +145,16 @@ function ClinicModalForm({
     }
   }
 
+  const weekDays = [
+    { key: "sunday", label: "الأحد" },
+    { key: "monday", label: "الاثنين" },
+    { key: "tuesday", label: "الثلاثاء" },
+    { key: "wednesday", label: "الأربعاء" },
+    { key: "thursday", label: "الخميس" },
+    { key: "friday", label: "الجمعة" },
+    { key: "saturday", label: "السبت" },
+  ]
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-card rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -154,6 +166,31 @@ function ClinicModalForm({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">نوع العيادة *</label>
+            <div className="grid grid-cols-2 gap-3">
+              <label
+                className={`flex items-center justify-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                  formData.clinicType === "private_clinic"
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="clinicType"
+                  value="private_clinic"
+                  checked={formData.clinicType === "private_clinic"}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, clinicType: e.target.value as "private_clinic" }))}
+                  className="sr-only"
+                />
+                <Building2 className="w-5 h-5" />
+                <span>عيادة خاصة</span>
+              </label>
+              {/* medical_center option removed intentionally */}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">اسم العيادة (عربي) *</label>
@@ -221,8 +258,8 @@ function ClinicModalForm({
             <div>
               <label className="block text-sm font-medium mb-1">العنوان التفصيلي</label>
               <Input
-                value={formData.street}
-                onChange={(e) => setFormData((prev) => ({ ...prev, street: e.target.value }))}
+                value={formData.address}
+                onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                 placeholder="مثال: شارع النصر، عمارة 5"
               />
             </div>
@@ -351,6 +388,53 @@ function ClinicModalForm({
             </label>
           </div>
 
+          <div className="border-t pt-4 mt-4 space-y-4">
+            <h4 className="font-bold text-md flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              إعدادات المواعيد والعمل
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">مدة الكشف (بالدقائق)</label>
+                <Input
+                  type="number"
+                  value={formData.slotDuration || 30}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, slotDuration: Number.parseInt(e.target.value) }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">أيام العمل</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {weekDays.map((day) => {
+                    const isSelected = formData.workingHours.find((wh) => wh.day === day.label)?.isOpen
+                    return (
+                      <button
+                        key={day.key}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            workingHours: prev.workingHours.map((wh) =>
+                              wh.day === day.label ? { ...wh, isOpen: !wh.isOpen } : wh,
+                            ),
+                          }))
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          isSelected
+                            ? "bg-primary text-white border-primary"
+                            : "bg-background text-muted-foreground border-border"
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button onClick={onSave} disabled={saving} className="flex-1">
               {saving ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
@@ -367,13 +451,12 @@ function ClinicModalForm({
 }
 
 export default function ClinicsPage() {
-  const [clinics, setClinics] = useState<Clinic[]>([])
+  const [clinics, setClinics] = useState<IClinic[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingClinic, setEditingClinic] = useState<Clinic | null>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [alert, setAlert] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false,
     message: "",
@@ -392,9 +475,11 @@ export default function ClinicsPage() {
 
   const [formData, setFormData] = useState<ClinicFormData>({
     name: "",
+    nameAr: "",
     nameEn: "",
+    clinicType: "private_clinic",
     description: "",
-    street: "",
+    address: "",
     city: "",
     area: "",
     governorate: "القاهرة",
@@ -406,6 +491,9 @@ export default function ClinicsPage() {
     images: "",
     isActive: true,
     isFeatured: false,
+    slotDuration: 30,
+    defaultStartTime: "09:00",
+    defaultEndTime: "21:00",
   })
 
   const governorates = [
@@ -428,16 +516,17 @@ export default function ClinicsPage() {
       const params = new URLSearchParams()
       if (search) params.append("search", search)
 
+      // Only fetch private clinics for this admin page
+      params.append("clinicType", "private_clinic")
+
       const response = await fetch(`/api/clinics?${params.toString()}`)
       const result = await response.json()
 
       if (result.success) {
-        const clinicsData = (result.clinics || result.data || [])
-          // تحويل id إلى _id لضمان توافق مع الكود
-          .map((clinic: any) => ({
-            ...clinic,
-            _id: clinic._id || clinic.id,
-          }))
+        const clinicsData = (result.clinics || result.data || []).map((clinic: any) => ({
+          ...clinic,
+          _id: clinic._id || clinic.id,
+        }))
         setClinics(clinicsData)
       } else {
         showAlert(result.error || "حدث خطأ أثناء جلب العيادات", "error")
@@ -460,12 +549,14 @@ export default function ClinicsPage() {
     setTimeout(() => setAlert({ show: false, message: "", type: "success" }), 3000)
   }
 
-  const handleAddClinic = () => {
+  const onAdd = () => {
     setFormData({
       name: "",
+      nameAr: "",
       nameEn: "",
+      clinicType: "private_clinic",
       description: "",
-      street: "",
+      address: "",
       city: "",
       area: "",
       governorate: "القاهرة",
@@ -477,75 +568,41 @@ export default function ClinicsPage() {
       images: "",
       isActive: true,
       isFeatured: false,
+      slotDuration: 30,
+      defaultStartTime: "09:00",
+      defaultEndTime: "21:00",
     })
-    setShowAddModal(true)
+    setEditId(null)
+    setIsAddModalOpen(true)
   }
 
-  const handleEditClinic = (clinic: Clinic) => {
-    setEditingClinic(clinic)
-    const mappedWorkingHours: WorkingHour[] = clinic.workingHours?.length
-      ? clinic.workingHours.map((wh) => ({
-          day: wh.day,
-          isOpen: wh.isOpen,
-          openTime: wh.openTime || "",
-          closeTime: wh.closeTime || "",
-        }))
-      : defaultWorkingHours
-
-    const specialtiesArray =
-      clinic.specialties?.map((s) => (typeof s === "string" ? s : (s as any).name || "")).filter(Boolean) || []
-
-    // معالجة العنوان (قد يكون string أو object)
-    let street = ""
-    let city = ""
-    let area = ""
-    let governorate = "القاهرة"
-
-    if (typeof clinic.address === "string") {
-      // إذا كان address string، حاول تقسيمه
-      const parts = clinic.address.split(",").map(p => p.trim())
-      street = parts[0] || ""
-      area = parts[1] || ""
-    } else if (clinic.address && typeof clinic.address === "object") {
-      street = clinic.address.street || ""
-      city = clinic.address.city || ""
-      area = clinic.address.area || ""
-      governorate = clinic.address.governorate || "القاهرة"
-    }
-
-    // المدينة قد تكون في clinic.city بدلاً من clinic.address.city
-    if (!city && clinic.city) {
-      city = clinic.city
-    }
-
-    // المنطقة قد تكون في clinic.area بدلاً من clinic.address.area
-    if (!area && clinic.area) {
-      area = clinic.area
-    }
-
-    const phoneStr = typeof clinic.phone === "string" ? clinic.phone : (clinic.phone?.join(", ") || "")
-
+  const onEdit = (clinic: IClinic) => {
     setFormData({
-      name: clinic.name || "",
-      nameEn: clinic.nameEn || clinic.nameAr || "",
-      description: clinic.description || clinic.descriptionAr || "",
-      street: street,
-      city: city,
-      area: area,
-      governorate: governorate,
-      phone: phoneStr,
+      name: clinic.name,
+      nameAr: clinic.nameAr || "",
+      nameEn: clinic.nameEn || "",
+      clinicType: clinic.clinicType,
+      description: clinic.description || "",
+      address: clinic.address || "",
+      city: clinic.city || "",
+      area: clinic.area || "",
+      governorate: clinic.governorate || "القاهرة",
+      phone: Array.isArray(clinic.phone) ? clinic.phone.join(", ") : clinic.phone,
       email: clinic.email || "",
-      specialties: specialtiesArray,
+      specialties: clinic.specialties || [],
       customSpecialty: "",
-      workingHours: mappedWorkingHours,
-      images: clinic.images?.join(", ") || "",
+      workingHours: clinic.workingHours.length > 0 ? clinic.workingHours : defaultWorkingHours,
+      images: clinic.images?.[0] || "",
       isActive: clinic.isActive,
       isFeatured: clinic.isFeatured,
+      slotDuration: clinic.slotDuration || 30,
+      defaultStartTime: clinic.defaultStartTime || "09:00",
+      defaultEndTime: clinic.defaultEndTime || "21:00",
     })
-    setShowEditModal(true)
+    setEditId(clinic._id)
+    setIsAddModalOpen(true)
   }
 
-  // دالة التحقق من الحقول المطلوبة
   const validateFormData = (): boolean => {
     const requiredFields = [
       { key: "name", label: "اسم العيادة (عربي)" },
@@ -562,7 +619,6 @@ export default function ClinicsPage() {
       }
     }
 
-    // التحقق من أن رقم الهاتف صحيح
     const phones = formData.phone
       .split(",")
       .map((p) => p.trim())
@@ -575,49 +631,33 @@ export default function ClinicsPage() {
     return true
   }
 
-  const handleSaveClinic = async () => {
-    // التحقق من الحقول المطلوبة أولاً
+  const onSave = async () => {
     if (!validateFormData()) {
       return
     }
 
     try {
       setSaving(true)
-      // معالجة أرقام الهاتف
-      const phoneArray = formData.phone
-        .split(",")
-        .map((p) => p.trim())
-        .filter(Boolean)
-      
-      const payload = {
-        name: formData.nameEn || formData.name, // الاسم الإنجليزي أو العربي كقيمة افتراضية
-        nameAr: formData.name, // الاسم العربي (مطلوب)
-        description: formData.description,
-        descriptionAr: formData.description,
-        address: `${formData.street}, ${formData.area}`, // دمج العنوان كنص واحد
-        city: formData.city,
-        area: formData.area,
-        phone: phoneArray.join(", "), // إرسال كـ string واحد مدمج
-        email: formData.email,
-        specialties: formData.specialties || [],
-        workingHours: formData.workingHours,
-        images: formData.images
-          .split(",")
-          .map((i) => i.trim())
-          .filter(Boolean),
+      const clinicData = {
+        ...formData,
+        phone: formData.phone.split(",").map((p) => p.trim()),
+        images: formData.images ? [formData.images] : [],
       }
 
-      const response = await fetch("/api/clinics", {
-        method: "POST",
+      const url = editId ? `/api/clinics/${editId}` : "/api/clinics"
+      const method = editId ? "PUT" : "POST"
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(clinicData),
       })
 
-      const result = await response.json()
+      const result = await res.json()
 
       if (result.success) {
         showAlert("تم إضافة العيادة بنجاح", "success")
-        setShowAddModal(false)
+        setIsAddModalOpen(false)
         fetchClinics()
       } else {
         showAlert(result.error || "حدث خطأ أثناء إضافة العيادة", "error")
@@ -629,71 +669,10 @@ export default function ClinicsPage() {
     }
   }
 
-  const handleSaveEdit = async () => {
-    if (!editingClinic) {
-      showAlert("حدث خطأ أثناء تحديث العيادة", "error")
-      return
-    }
-
-    // التحقق من الحقول المطلوبة أولاً
-    if (!validateFormData()) {
-      return
-    }
-
-    try {
-      setSaving(true)
-      
-      // معالجة أرقام الهاتف
-      const phoneArray = formData.phone
-        .split(",")
-        .map((p) => p.trim())
-        .filter(Boolean)
-      
-      const payload = {
-        name: formData.nameEn || formData.name, // الاسم الإنجليزي أو العربي كقيمة افتراضية
-        nameAr: formData.name, // الاسم العربي (مطلوب)
-        description: formData.description,
-        descriptionAr: formData.description,
-        address: `${formData.street}, ${formData.area}`, // دمج العنوان كنص واحد
-        city: formData.city,
-        area: formData.area,
-        phone: phoneArray.join(", "), // إرسال كـ string واحد مدمج
-        email: formData.email,
-        specialties: formData.specialties || [],
-        workingHours: formData.workingHours,
-        images: formData.images
-          .split(",")
-          .map((i) => i.trim())
-          .filter(Boolean),
-      }
-
-      const response = await fetch(`/api/clinics/${editingClinic._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        showAlert("تم تحديث العيادة بنجاح", "success")
-        setShowEditModal(false)
-        setEditingClinic(null)
-        fetchClinics()
-      } else {
-        showAlert(result.error || "حدث خطأ أثناء تحديث العيادة", "error")
-      }
-    } catch (error) {
-      showAlert("حدث خطأ أثناء الاتصال بالخادم", "error")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleDeleteClinic = async (clinic: Clinic) => {
+  const onDelete = async (clinic: IClinic) => {
     if (!confirm("هل أنت متأكد من حذف هذه العيادة؟")) return
 
-    const clinicId = clinic._id || clinic.id
+    const clinicId = clinic._id
     if (!clinicId) {
       showAlert("حدث خطأ: لا يمكن تحديد العيادة", "error")
       return
@@ -717,8 +696,18 @@ export default function ClinicsPage() {
     }
   }
 
+  const filteredClinics = clinics.filter((clinic) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      clinic.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clinic.nameEn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clinic.city?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    return matchesSearch
+  })
+
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-background p-6">
       {alert.show && (
         <div
           className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg ${
@@ -731,174 +720,131 @@ export default function ClinicsPage() {
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <Building2 className="w-7 h-7 text-primary" />
             العيادات
           </h1>
           <p className="text-muted-foreground text-sm mt-1">إدارة العيادات المسجلة</p>
         </div>
-        <Button onClick={handleAddClinic} className="gap-2">
+        <Button onClick={onAdd} className="gap-2">
           <Plus className="w-4 h-4" />
           إضافة عيادة
         </Button>
       </div>
 
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1 relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
-                placeholder="بحث عن عيادة..."
+                placeholder="ابحث عن العيادات..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    fetchClinics(searchTerm)
-                  }
-                }}
                 className="pr-10"
               />
             </div>
-            <Button variant="outline" onClick={() => fetchClinics(searchTerm)} className="gap-2 bg-transparent">
-              <Search className="w-4 h-4" />
-              بحث
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm("")
-                fetchClinics()
-              }}
-              className="gap-2 bg-transparent"
-            >
-              <RefreshCw className="w-4 h-4" />
-              تحديث
-            </Button>
+
+            <div className="flex items-center">
+              <span className="text-sm text-muted-foreground">عدد العيادات: {clinics.length}</span>
+            </div>
           </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : filteredClinics.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>لا توجد عيادات</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {filteredClinics.map((clinic) => (
+                <Card key={clinic._id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-bold text-lg">{clinic.name}</h3>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <Building2 className="w-3 h-3" />
+                              {clinic.clinicType === "private_clinic" ? "عيادة خاصة" : "مركز طبي"}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => onEdit(clinic)}
+                              className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => onDelete(clinic)}
+                              className="p-2 hover:bg-red-50 rounded-lg text-muted-foreground hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">
+                            {[clinic.city, clinic.area, clinic.address, clinic.governorate].filter(Boolean).join(", ")}
+                          </span>
+                        </div>
+                        {((typeof clinic.phone === "string" && clinic.phone.trim() !== "") ||
+                          (Array.isArray(clinic.phone) && clinic.phone.length > 0)) && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Phone className="w-3 h-3" />
+                            <span dir="ltr">
+                              {typeof clinic.phone === "string" ? clinic.phone.split(",")[0].trim() : clinic.phone[0]}
+                            </span>
+                          </div>
+                        )}
+                        {clinic.specialties?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {clinic.specialties.slice(0, 3).map((specialty, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-muted text-xs rounded-full">
+                                {typeof specialty === "string" ? specialty : (specialty as any).name}
+                              </span>
+                            ))}
+                            {clinic.specialties.length > 3 && (
+                              <span className="px-2 py-0.5 bg-muted text-xs rounded-full">
+                                +{clinic.specialties.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {typeof clinic.slotDuration === "number" && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                            <span className="font-bold">مدة الكشف:</span>
+                            <span>{clinic.slotDuration} دقيقة</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : clinics.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">لا توجد عيادات</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {clinics.map((clinic) => (
-            <Card key={clinic._id || clinic.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold truncate">{clinic.name}</h3>
-                      {clinic.isFeatured && (
-                        <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">مميزة</span>
-                      )}
-                      <span
-                        className={`px-2 py-0.5 text-xs rounded-full ${
-                          clinic.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {clinic.isActive ? "نشطة" : "غير نشطة"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                      <MapPin className="w-3 h-3" />
-                      <span className="truncate">
-                        {
-                          // عرض: المدينة ثم المنطقة ثم العنوان التفصيلي (ثم المحافظة إن وُجدت)
-                          typeof clinic.address === "string"
-                            ? (() => {
-                                const parts = clinic.address.split(",").map((p) => p.trim())
-                                const streetPart = parts[0] || ""
-                                const areaPart = parts[1] || ""
-                                return [clinic.city, areaPart, streetPart, clinic.governorate].filter(Boolean).join(", ")
-                              })()
-                            : clinic.address
-                            ? [clinic.address.city, clinic.address.area, clinic.address.street, clinic.address.governorate]
-                                .filter(Boolean)
-                                .join(", ")
-                            : [clinic.city, clinic.area, clinic.governorate].filter(Boolean).join(", ")
-                        }
-                      </span>
-                    </div>
-
-                    {( (typeof clinic.phone === "string" && clinic.phone.trim() !== "") || (Array.isArray(clinic.phone) && clinic.phone.length > 0) ) && (
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Phone className="w-3 h-3" />
-                        <span dir="ltr">{typeof clinic.phone === "string" ? clinic.phone.split(",")[0].trim() : clinic.phone[0]}</span>
-                      </div>
-                    )}
-
-                    {clinic.specialties?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {clinic.specialties.slice(0, 3).map((specialty, idx) => (
-                          <span key={idx} className="px-2 py-0.5 bg-muted text-xs rounded-full">
-                            {typeof specialty === "string" ? specialty : (specialty as any).name}
-                          </span>
-                        ))}
-                        {clinic.specialties.length > 3 && (
-                          <span className="px-2 py-0.5 bg-muted text-xs rounded-full">
-                            +{clinic.specialties.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEditClinic(clinic)}
-                      className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClinic(clinic)}
-                      className="p-2 hover:bg-red-50 rounded-lg text-muted-foreground hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {showAddModal && (
+      {isAddModalOpen && (
         <ClinicModalForm
-          isEdit={false}
+          isEdit={!!editId}
           formData={formData}
           setFormData={setFormData}
           governorates={governorates}
           saving={saving}
-          onSave={handleSaveClinic}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
-
-      {showEditModal && (
-        <ClinicModalForm
-          isEdit={true}
-          formData={formData}
-          setFormData={setFormData}
-          governorates={governorates}
-          saving={saving}
-          onSave={handleSaveEdit}
+          onSave={onSave}
           onClose={() => {
-            setShowEditModal(false)
-            setEditingClinic(null)
+            setIsAddModalOpen(false)
+            setEditId(null)
           }}
         />
       )}

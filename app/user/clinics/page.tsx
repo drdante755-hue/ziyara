@@ -1,9 +1,21 @@
 "use client"
 
+import type React from "react"
+
 import Link from "next/link"
 import Image from "next/image"
 import { useState, useEffect } from "react"
-import { ArrowRight, Stethoscope, MapPin, Star, Loader2, Search, SlidersHorizontal, Shield } from "lucide-react"
+import {
+  ArrowRight,
+  Stethoscope,
+  MapPin,
+  Star,
+  Loader2,
+  Search,
+  SlidersHorizontal,
+  Shield,
+  Building2,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,6 +23,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import ClinicDetailsModal from "@/components/clinic-details-modal"
+import { useRouter } from "next/navigation"
 
 interface Clinic {
   id: string
@@ -27,16 +41,20 @@ interface Clinic {
   reviewsCount: number
   isFeatured: boolean
   insuranceAccepted?: string[]
+  clinicType: "medical_center" | "private_clinic"
 }
 
 const cities = ["القاهرة", "الجيزة", "الإسكندرية", "المنصورة", "طنطا", "الزقازيق"]
 
 export default function ClinicsPage() {
-  const [clinics, setClinics] = useState<Clinic[]>([])
+  const [privateClinics, setPrivateClinics] = useState<Clinic[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [city, setCity] = useState("all")
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     fetchClinics()
@@ -48,15 +66,16 @@ export default function ClinicsPage() {
       const params = new URLSearchParams()
       if (search) params.append("search", search)
       if (city && city !== "all") params.append("city", city)
+      params.append("clinicType", "private_clinic")
 
       const res = await fetch(`/api/clinics?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
-        setClinics(data.clinics || [])
+        setPrivateClinics(data.clinics || [])
       }
     } catch (error) {
       console.error("Error fetching clinics:", error)
-      setClinics([])
+      setPrivateClinics([])
     } finally {
       setLoading(false)
     }
@@ -70,8 +89,80 @@ export default function ClinicsPage() {
   const clearFilters = () => {
     setSearch("")
     setCity("all")
-    setTimeout(fetchClinics, 100)
+    setTimeout(() => {
+      fetchClinics()
+    }, 100)
   }
+
+  const handleViewDetails = (clinic: Clinic, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedClinic(clinic)
+    setIsDetailsModalOpen(true)
+  }
+
+  const handleBookAppointment = (clinicId: string) => {
+    router.push(`/user/book-appointment?clinicId=${clinicId}`)
+  }
+
+  const ClinicCard = ({ clinic }: { clinic: Clinic }) => (
+    <div key={clinic.id} className="group cursor-pointer" onClick={(e) => handleViewDetails(clinic, e)}>
+      <Card className="h-full bg-white hover:shadow-xl transition-all duration-300 border-0 shadow-md overflow-hidden rounded-2xl">
+        <div className="relative overflow-hidden bg-gray-100">
+          <div className="aspect-[16/10] relative overflow-hidden">
+            <Image
+              src={
+                clinic.images?.[0] ||
+                clinic.logo ||
+                `/placeholder.svg?height=300&width=400&query=medical clinic` ||
+                "/placeholder.svg" ||
+                "/placeholder.svg" ||
+                "/placeholder.svg"
+              }
+              alt={clinic.nameAr || clinic.name || "عيادة"}
+              fill
+              className="object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+          </div>
+          {clinic.isFeatured && <Badge className="absolute top-3 right-3 bg-amber-500 text-white">مميز</Badge>}
+        </div>
+        <CardContent className="p-5">
+          <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">
+            {clinic.nameAr || clinic.name || "عيادة"}
+          </h3>
+          <div className="flex items-center gap-1 text-gray-500 text-sm mb-3">
+            <MapPin className="w-4 h-4" />
+            <span>{[clinic.city, clinic.area].filter(Boolean).join(" - ") || "موقع غير محدد"}</span>
+          </div>
+
+          {Array.isArray(clinic.specialties) && clinic.specialties.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {clinic.specialties.slice(0, 3).map((spec, i) => (
+                <span key={i} className="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full">
+                  {spec}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-3 border-t">
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span className="font-semibold">{(clinic.rating ?? 0).toFixed(1)}</span>
+              <span className="text-gray-400 text-sm">({clinic.reviewsCount ?? 0})</span>
+            </div>
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs"
+              onClick={(e) => handleViewDetails(clinic, e)}
+            >
+              عرض التفاصيل
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -103,24 +194,33 @@ export default function ClinicsPage() {
               <span className="text-sm font-medium">عيادات متخصصة</span>
             </div>
 
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">العيادات</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">العيادات الخاصة</h1>
             <p className="text-lg text-white/70 mb-8 max-w-2xl mx-auto">
-              اكتشف أفضل العيادات المتخصصة في منطقتك واحجز موعدك بسهولة
+              اكتشف أفضل العيادات الخاصة المتخصصة في منطقتك واحجز موعدك بسهولة
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-6">
               <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-5 py-3 rounded-xl">
-                <Stethoscope className="w-6 h-6 text-emerald-300" />
+                <Building2 className="w-6 h-6 text-emerald-300" />
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">{clinics.length}</p>
-                  <p className="text-xs text-white/60">عيادة</p>
+                  <p className="text-2xl font-bold text-white">{privateClinics.length}</p>
+                  <p className="text-xs text-white/60">عيادة خاصة</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-5 py-3 rounded-xl">
                 <Shield className="w-6 h-6 text-emerald-300" />
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">{clinics.filter((c) => c.isFeatured).length}</p>
+                  <p className="text-2xl font-bold text-white">{privateClinics.filter((c) => c.isFeatured).length}</p>
                   <p className="text-xs text-white/60">عيادة مميزة</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-5 py-3 rounded-xl">
+                <Stethoscope className="w-6 h-6 text-emerald-300" />
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-white">
+                    {privateClinics.reduce((acc, c) => acc + (c.specialties?.length || 0), 0)}
+                  </p>
+                  <p className="text-xs text-white/60">تخصص متاح</p>
                 </div>
               </div>
             </div>
@@ -145,7 +245,7 @@ export default function ClinicsPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث عن عيادة..."
+              placeholder="ابحث عن عيادة خاصة..."
               className="pr-10 rounded-xl border-gray-200"
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
@@ -195,88 +295,43 @@ export default function ClinicsPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
           </div>
-        ) : clinics.length === 0 ? (
+        ) : privateClinics.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {privateClinics.map((clinic) => (
+              <ClinicCard key={clinic.id} clinic={clinic} />
+            ))}
+          </div>
+        ) : (
           <div className="bg-white rounded-3xl p-12 text-center shadow-lg">
             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Stethoscope className="w-10 h-10 text-emerald-600" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">لا توجد عيادات</h2>
-            <p className="text-gray-600 mb-6">جرب تغيير معايير البحث</p>
+            <p className="text-gray-600 mb-6">جرب تغيير معايير البحث للعثور على عيادات خاصة في منطقتك</p>
             <Button onClick={clearFilters} className="bg-emerald-600 hover:bg-emerald-700 rounded-full px-8">
               مسح الفلاتر
             </Button>
           </div>
-        ) : (
-          <>
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">{clinics.length} عيادة</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {clinics.map((clinic) => (
-                <Link key={clinic.id} href={`/user/clinics/${clinic.id}`} className="group">
-                  <Card className="h-full bg-white hover:shadow-xl transition-all duration-300 border-0 shadow-md overflow-hidden rounded-2xl">
-                    <div className="relative overflow-hidden bg-gray-100">
-                      <div className="aspect-[16/10] relative overflow-hidden">
-                        <Image
-                          src={
-                            clinic.images?.[0] ||
-                            clinic.logo ||
-                            `/placeholder.svg?height=300&width=400&query=medical clinic` ||
-                            "/placeholder.svg"
-                          }
-                          alt={clinic.nameAr || clinic.name || "عيادة"}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      </div>
-                      {clinic.isFeatured && (
-                        <Badge className="absolute top-3 right-3 bg-amber-500 text-white">مميز</Badge>
-                      )}
-                    </div>
-                    <CardContent className="p-5">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">
-                        {clinic.nameAr || clinic.name || "عيادة"}
-                      </h3>
-                      <div className="flex items-center gap-1 text-gray-500 text-sm mb-3">
-                        <MapPin className="w-4 h-4" />
-                        <span>{[clinic.city, clinic.area].filter(Boolean).join(" - ") || "موقع غير محدد"}</span>
-                      </div>
-
-                      {Array.isArray(clinic.specialties) && clinic.specialties.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {clinic.specialties.slice(0, 3).map((spec, i) => (
-                            <span key={i} className="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full">
-                              {spec}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                          <span className="font-semibold">{(clinic.rating ?? 0).toFixed(1)}</span>
-                          <span className="text-gray-400 text-sm">({clinic.reviewsCount ?? 0})</span>
-                        </div>
-                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs">
-                          عرض التفاصيل
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          </>
         )}
       </div>
+
+      {/* Clinic Details Modal */}
+      {selectedClinic && (
+        <ClinicDetailsModal
+          clinic={selectedClinic}
+          open={isDetailsModalOpen}
+          onClose={() => {
+            setIsDetailsModalOpen(false)
+            setSelectedClinic(null)
+          }}
+          onBookAppointment={handleBookAppointment}
+        />
+      )}
     </div>
   )
 }

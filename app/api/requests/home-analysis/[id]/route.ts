@@ -4,11 +4,11 @@ import { HomeAnalysisRequest } from "@/models/HomeAnalysis"
 import ActivityLog from "@/models/ActivityLog"
 
 // GET - Get single home analysis request
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect()
 
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ success: false, error: "معرف الطلب مطلوب" }, { status: 400 })
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PATCH - Update home analysis request
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect()
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
 
     if (!id) {
@@ -81,11 +81,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // DELETE - Delete home analysis request
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect()
 
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ success: false, error: "معرف الطلب مطلوب" }, { status: 400 })

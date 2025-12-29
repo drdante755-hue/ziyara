@@ -29,6 +29,8 @@ import {
   AlertCircle,
   Truck,
   Copy,
+  MapPin,
+  Video,
 } from "lucide-react"
 
 interface UserData {
@@ -83,6 +85,25 @@ interface Discount {
   endDate: string | null
 }
 
+interface Booking {
+  id: string
+  bookingNumber: string
+  provider: {
+    id: string
+    nameAr: string
+    specialtyAr: string
+    image?: string
+  }
+  clinic?: { nameAr: string; address: string }
+  hospital?: { nameAr: string; address: string }
+  date: string
+  startTime: string
+  type: "clinic" | "hospital" | "online" | "home"
+  totalPrice: number
+  status: "pending" | "confirmed" | "completed" | "cancelled"
+  paymentStatus: "pending" | "paid" | "refunded"
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("overview")
@@ -91,6 +112,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<StatsData | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [discounts, setDiscounts] = useState<Discount[]>([])
+  const [bookings, setBookings] = useState<Booking[]>([])
   const [showOrderDetails, setShowOrderDetails] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
@@ -109,6 +131,12 @@ export default function ProfilePage() {
         setStats(data.stats)
         setOrders(data.orders || [])
         setDiscounts(data.discounts || [])
+      }
+
+      const bookingsResponse = await fetch("/api/bookings")
+      const bookingsData = await bookingsResponse.json()
+      if (bookingsData.success) {
+        setBookings(bookingsData.bookings || [])
       }
     } catch (error) {
       console.error("Error fetching profile:", error)
@@ -182,6 +210,20 @@ export default function ProfilePage() {
     }
   }
 
+  const bookingStatusMap: { [key: string]: { label: string; color: string } } = {
+    pending: { label: "في الانتظار", color: "bg-yellow-100 text-yellow-700" },
+    confirmed: { label: "مؤكد", color: "bg-blue-100 text-blue-700" },
+    completed: { label: "مكتمل", color: "bg-green-100 text-green-700" },
+    cancelled: { label: "ملغى", color: "bg-red-100 text-red-700" },
+  }
+
+  const bookingTypeMap: { [key: string]: { label: string; icon: any } } = {
+    clinic: { label: "في العيادة", icon: MapPin },
+    hospital: { label: "في المستشفى", icon: MapPin },
+    online: { label: "أونلاين", icon: Video },
+    home: { label: "زيارة منزلية", icon: MapPin },
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 relative">
       <FloatingMedicalIcons />
@@ -233,6 +275,13 @@ export default function ProfilePage() {
                 >
                   <Package className="w-3.5 xs:w-4 sm:w-5 h-3.5 xs:h-4 sm:h-5" />
                   <span className="font-medium">الطلبات</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="bookings"
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 xs:px-3 sm:px-4 min-h-[44px] sm:min-h-[60px] data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm rounded-lg transition-all text-[10px] xs:text-xs sm:text-sm whitespace-nowrap flex-1 min-w-[70px] xs:min-w-[80px] touch-manipulation"
+                >
+                  <Calendar className="w-3.5 xs:w-4 sm:w-5 h-3.5 xs:h-4 sm:h-5" />
+                  <span className="font-medium">الحجوزات</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="discounts"
@@ -313,6 +362,56 @@ export default function ProfilePage() {
                             <div className="text-center py-4 text-gray-500">
                               <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
                               <p>لا توجد طلبات بعد</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200 lg:col-span-2">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold text-purple-800 flex items-center gap-2">
+                            <Calendar className="w-5 h-5" />
+                            الحجوزات القادمة
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-purple-600 hover:text-purple-700 p-0 h-auto"
+                            onClick={() => setActiveTab("bookings")}
+                          >
+                            عرض الكل
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {bookings.filter((b) => ["pending", "confirmed"].includes(b.status)).length > 0 ? (
+                            bookings
+                              .filter((b) => ["pending", "confirmed"].includes(b.status))
+                              .slice(0, 2)
+                              .map((booking, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-3 p-3 bg-white/60 rounded-lg border border-purple-100"
+                                >
+                                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                    <Stethoscope className="w-5 h-5" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-semibold">{booking.provider?.nameAr}</p>
+                                    <p className="text-xs text-gray-600">
+                                      {new Date(booking.date).toLocaleDateString("ar-EG")} - {booking.startTime}
+                                    </p>
+                                  </div>
+                                  <Badge className={`${bookingStatusMap[booking.status]?.color} border-0 text-[10px]`}>
+                                    {bookingStatusMap[booking.status]?.label}
+                                  </Badge>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="text-center py-4 text-gray-500 col-span-2">
+                              <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p>لا توجد حجوزات قادمة</p>
                             </div>
                           )}
                         </div>
@@ -401,6 +500,103 @@ export default function ProfilePage() {
                       <p className="text-gray-600 mb-4">لم تقم بأي طلبات بعد</p>
                       <Button onClick={() => router.push("/user/home")} className="bg-emerald-600 hover:bg-emerald-700">
                         تصفح المنتجات
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="bookings" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-semibold text-gray-900">حجوزاتي الطبية</h3>
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                    {bookings.length} حجز
+                  </Badge>
+                </div>
+
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                  </div>
+                ) : bookings.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {bookings.map((booking) => {
+                      const TypeIcon = bookingTypeMap[booking.type]?.icon || MapPin
+                      return (
+                        <Card key={booking.id} className="hover:shadow-md transition-all border-purple-100">
+                          <CardContent className="p-4">
+                            <div className="flex gap-4">
+                              <div className="w-16 h-16 rounded-xl overflow-hidden bg-purple-50 shrink-0 border border-purple-100">
+                                <img
+                                  src={booking.provider?.image || "/placeholder.svg?height=64&width=64&query=doctor"}
+                                  alt={booking.provider?.nameAr}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <div>
+                                    <h4 className="font-bold text-gray-900 truncate">{booking.provider?.nameAr}</h4>
+                                    <p className="text-xs text-purple-600 font-medium">
+                                      {booking.provider?.specialtyAr}
+                                    </p>
+                                  </div>
+                                  <Badge
+                                    className={`${bookingStatusMap[booking.status]?.color} border-0 text-[10px] whitespace-nowrap`}
+                                  >
+                                    {bookingStatusMap[booking.status]?.label}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-y-2 mt-3">
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                    <Calendar className="w-3.5 h-3.5 text-purple-500" />
+                                    {new Date(booking.date).toLocaleDateString("ar-EG")}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                    <Clock className="w-3.5 h-3.5 text-purple-500" />
+                                    {booking.startTime}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                    <TypeIcon className="w-3.5 h-3.5 text-purple-500" />
+                                    {bookingTypeMap[booking.type]?.label}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                                    {booking.totalPrice} ج.م
+                                  </div>
+                                </div>
+                                <div className="mt-4 flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 text-xs h-8 bg-transparent"
+                                    onClick={() => router.push(`/user/bookings/${booking.id}`)}
+                                  >
+                                    التفاصيل
+                                  </Button>
+                                  {booking.status === "confirmed" && booking.type === "online" && (
+                                    <Button size="sm" className="flex-1 text-xs h-8 bg-purple-600 hover:bg-purple-700">
+                                      دخول المكالمة
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <Card className="bg-gray-50 border-dashed border-2">
+                    <CardContent className="p-8 text-center">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">لا توجد حجوزات</h4>
+                      <p className="text-gray-600 mb-6">لم تقم بحجز أي مواعيد طبية بعد</p>
+                      <Button
+                        onClick={() => router.push("/user/clinics")}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        احجز موعدك الأول
                       </Button>
                     </CardContent>
                   </Card>
@@ -556,7 +752,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       <Button
-                        onClick={() => router.push("/user/lab-requests")}
+                        onClick={() => router.push("/user/lab-test")}
                         className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                       >
                         عرض الطلبات
@@ -626,7 +822,7 @@ export default function ProfilePage() {
                       تم الطلب في {new Date(selectedOrder.date).toLocaleDateString("ar-EG")}
                     </p>
                   </div>
-                  <Badge className={`${getStatusColor(selectedOrder.status)} border-0`}>
+                  <Badge className={`${getStatusColor(selectedOrder.status)} border-0 text-[10px]`}>
                     <div className="flex items-center gap-1">
                       {getStatusIcon(selectedOrder.status)}
                       {getStatusText(selectedOrder.status)}

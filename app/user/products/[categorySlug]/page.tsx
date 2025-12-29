@@ -3,12 +3,11 @@
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { X, Loader2, ArrowRight, ShoppingBag, Sparkles, Package, SlidersHorizontal, Search } from "lucide-react"
 import { useCart } from "@/contexts/cart-context"
+import ProductDetailsModal from "@/components/product-details-modal"
+import ProductCard from "@/components/product-card" // Assuming ProductCard is imported here
 
 interface Product {
   id: string
@@ -69,6 +68,8 @@ export default function CategoryProductsPage() {
   const [categoryName, setCategoryName] = useState<string>("")
   const [categoryData, setCategoryData] = useState<Category | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [showProductModal, setShowProductModal] = useState(false)
 
   const fetchProducts = useCallback(
     async (page = 1) => {
@@ -175,6 +176,11 @@ export default function CategoryProductsPage() {
       category: product.category,
       discount: product.discount,
     })
+  }
+
+  const handleViewProductDetails = (product: Product) => {
+    setSelectedProduct(product)
+    setShowProductModal(true)
   }
 
   const displayCategoryName =
@@ -418,80 +424,13 @@ export default function CategoryProductsPage() {
                 const originalPrice = product.originalPrice || product.price // Show original if discount exists
 
                 return (
-                  <Card
-                    key={product.id}
-                    className="group h-full bg-white hover:shadow-xl transition-all duration-300 border-0 shadow-md overflow-hidden rounded-2xl"
-                  >
-                    <div className="relative overflow-hidden bg-gray-100">
-                      <div className="aspect-square relative overflow-hidden">
-                        <Image
-                          src={
-                            product.image ||
-                            `/placeholder.svg?height=300&width=300&query=${encodeURIComponent(product.name) || "/placeholder.svg"}`
-                          }
-                          alt={product.name}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      </div>
-
-                      {/* Badges */}
-                      <div className="absolute top-3 right-3 flex flex-col gap-2">
-                        {product.discount && product.discount > 0 && (
-                          <Badge className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs px-2.5 py-1 rounded-lg shadow-lg">
-                            -{product.discount}%
-                          </Badge>
-                        )}
-                        {product.isNew && (
-                          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-2.5 py-1 rounded-lg shadow-lg">
-                            جديد
-                          </Badge>
-                        )}
-                        {product.isBestseller && (
-                          <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-2.5 py-1 rounded-lg shadow-lg">
-                            الأكثر مبيعاً
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Out of Stock Overlay */}
-                      {!product.inStock && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                          <span className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold text-sm">
-                            نفذت الكمية
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <CardContent className="p-4">
-                      {/* Category */}
-                      <p className="text-xs text-emerald-600 font-medium mb-2">{product.category}</p>
-
-                      {/* Product Name */}
-                      <h3 className="font-semibold text-gray-900 mb-3 line-clamp-2 text-sm leading-snug group-hover:text-emerald-600 transition-colors">
-                        {product.name}
-                      </h3>
-
-                      {/* Price */}
-                      <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-lg font-bold text-gray-900">{displayPrice.toFixed(2)}</span>
-                        <span className="text-xs text-gray-500">ج.م</span>
-                        {product.originalPrice && product.originalPrice > product.price && (
-                          <span className="text-sm text-gray-400 line-through mr-auto">{originalPrice.toFixed(2)}</span>
-                        )}
-                      </div>
-
-                      {/* Add to Cart Button */}
-                      <Button
-                        disabled={!product.inStock}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm py-2.5 font-medium rounded-xl transition-all duration-300"
-                        onClick={() => handleAddToCart(product)}
-                      >
-                        {product.inStock ? "أضف للسلة" : "غير متوفر"}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  <div key={product.id} onClick={() => handleViewProductDetails(product)}>
+                    <ProductCard
+                      product={product as any}
+                      onAddToCart={() => handleAddToCart(product)}
+                      onViewDetails={() => handleViewProductDetails(product)}
+                    />
+                  </div>
                 )
               })}
             </div>
@@ -570,6 +509,17 @@ export default function CategoryProductsPage() {
           </>
         )}
       </div>
+
+      {/* Product Details Modal */}
+      <ProductDetailsModal
+        product={selectedProduct as any}
+        open={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        onAddToCart={(p) => {
+          handleAddToCart(p as any)
+          setShowProductModal(false)
+        }}
+      />
     </div>
   )
 }

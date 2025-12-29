@@ -9,12 +9,11 @@ import { SearchOverlay } from "@/components/search-overlay"
 import { NurseRequestOverlay } from "@/components/nurse-request-overlay"
 import { LabTestOverlay } from "@/components/lab-test-overlay"
 import { CartOverlay } from "@/components/cart-overlay"
-import { CartAddedModal } from "@/components/cart-added-modal"
+import ProductDetailsModal from "@/components/product-details-modal"
 import CategoryCards from "@/components/category-cards"
 import ProductCard from "@/components/product-card"
 import { BannerCarousel } from "@/components/banner-carousel"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -40,11 +39,11 @@ import {
   TestTube,
   Activity,
   Calendar,
+  Star,
+  CheckCircle,
+  UserCheck,
   HeartPulse,
   Pill,
-  UserCheck,
-  BadgeCheck,
-  TrendingUp,
   Search,
 } from "lucide-react"
 
@@ -102,6 +101,12 @@ export default function HomePage() {
   const [homeStats, setHomeStats] = useState<HomeStats | null>(null)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
 
+  const [medicalCenters, setMedicalCenters] = useState<any[]>([])
+  const [isLoadingCenters, setIsLoadingCenters] = useState(true)
+
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [showProductModal, setShowProductModal] = useState(false)
+
   const fetchHomeStats = useCallback(async () => {
     try {
       setIsLoadingStats(true)
@@ -158,18 +163,35 @@ export default function HomePage() {
     }
   }, [])
 
+  const fetchFeaturedMedicalCenters = useCallback(async () => {
+    try {
+      setIsLoadingCenters(true)
+      const response = await fetch("/api/medical-centers?featured=true&limit=6")
+      const data = await response.json()
+
+      if (data.success) {
+        setMedicalCenters(data.centers)
+      }
+    } catch (error) {
+      console.error("Error fetching medical centers:", error)
+    } finally {
+      setIsLoadingCenters(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchHomeStats()
 
     if (activeSection === "home") {
       fetchFeaturedProducts()
       fetchProducts()
+      fetchFeaturedMedicalCenters()
     } else if (
       ["local", "imported", "rare", "supplements", "skincare", "baby", "medical", "energy"].includes(activeSection)
     ) {
       fetchProducts(activeSection)
     }
-  }, [activeSection, fetchProducts, fetchFeaturedProducts, fetchHomeStats])
+  }, [activeSection, fetchProducts, fetchFeaturedProducts, fetchHomeStats, fetchFeaturedMedicalCenters])
 
   useEffect(() => {
     const checkProfileCompletion = async () => {
@@ -300,6 +322,11 @@ export default function HomePage() {
     })
   }
 
+  const handleViewProductDetails = (product: Product) => {
+    setSelectedProduct(product)
+    setShowProductModal(true)
+  }
+
   const ProductsSkeleton = () => (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
       {[...Array(8)].map((_, i) => (
@@ -351,16 +378,6 @@ export default function HomePage() {
 
   const services = [
     {
-      id: "hospitals",
-      title: "المستشفيات",
-      description: "أفضل المستشفيات والمراكز الطبية",
-      icon: Building2,
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-blue-50",
-      iconColor: "text-blue-600",
-      href: "/user/hospitals",
-    },
-    {
       id: "clinics",
       title: "العيادات",
       description: "عيادات متخصصة في جميع التخصصات",
@@ -369,16 +386,6 @@ export default function HomePage() {
       bgColor: "bg-emerald-50",
       iconColor: "text-emerald-600",
       href: "/user/clinics",
-    },
-    {
-      id: "doctors",
-      title: "الأطباء",
-      description: "احجز موعد مع أفضل الأطباء",
-      icon: UserCheck,
-      color: "from-teal-500 to-teal-600",
-      bgColor: "bg-teal-50",
-      iconColor: "text-teal-600",
-      href: "/user/doctors",
     },
     {
       id: "lab",
@@ -429,7 +436,7 @@ export default function HomePage() {
       description: "خدمة عملاء متواصلة",
     },
     {
-      icon: BadgeCheck,
+      icon: CheckCircle,
       title: "مرخص رسمياً",
       description: "من وزارة الصحة",
     },
@@ -452,7 +459,13 @@ export default function HomePage() {
                   {/* Brand Badge */}
                   <div className="flex items-center gap-4 mb-6">
                     <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-xl p-2.5">
-                      <Image src="/images/Ziyara-logo.png" alt="زيارة" width={44} height={33} className="object-contain" />
+                      <Image
+                        src="/images/Ziyara-logo.png"
+                        alt="زيارة"
+                        width={44}
+                        height={33}
+                        className="object-contain"
+                      />
                     </div>
                     <Badge className="bg-amber-400/90 text-emerald-950 border-0 px-4 py-1.5 text-xs font-bold">
                       <Award className="w-3.5 h-3.5 ml-1.5" />
@@ -486,7 +499,7 @@ export default function HomePage() {
                     <Button
                       size="lg"
                       variant="outline"
-                      onClick={() => router.push("/user/doctors")}
+                      onClick={() => router.push("/user/clinics")}
                       className="border-2 border-white/30 text-white hover:bg-white/10 text-base px-8 py-5 rounded-xl font-semibold backdrop-blur-sm transition-all duration-300"
                     >
                       <Calendar className="w-5 h-5 ml-2" />
@@ -544,6 +557,8 @@ export default function HomePage() {
             {/* Banner Carousel */}
             <BannerCarousel position="user-home-main" />
 
+            {/* Featured medical centers section removed */}
+
             <section>
               {isLoadingStats ? (
                 <StatsSkeleton />
@@ -586,7 +601,7 @@ export default function HomePage() {
                   <Card className="border-0 bg-gradient-to-br from-rose-50 to-pink-50 shadow-sm">
                     <CardContent className="p-5 text-center">
                       <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                        <TrendingUp className="w-6 h-6 text-white" />
+                        <Star className="w-6 h-6 text-white" />
                       </div>
                       <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                         {homeStats ? formatNumber(homeStats.completedOrders) : "0"}
@@ -631,7 +646,12 @@ export default function HomePage() {
               ) : featuredProducts.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
                   {featuredProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onAddToCart={handleAddToCart}
+                      onViewDetails={handleViewProductDetails}
+                    />
                   ))}
                 </div>
               ) : (
@@ -720,7 +740,7 @@ export default function HomePage() {
                         <Button
                           size="sm"
                           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg"
-                          onClick={() => router.push("/user/doctors")}
+                          onClick={() => router.push("/user/clinics")}
                         >
                           احجز الآن
                         </Button>
@@ -736,7 +756,7 @@ export default function HomePage() {
 
             <section className="bg-gray-50 rounded-2xl p-6 sm:p-8">
               <div className="text-center mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">لماذا تختار زيارة؟</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">لماذا تختار زيارة؟</h2>
                 <p className="text-gray-500 text-sm">مميزات تجعلنا الخيار الأول لك</p>
               </div>
 
@@ -904,9 +924,14 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : processedProducts.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-                {processedProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+                {applyFiltersAndSort(products).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onViewDetails={handleViewProductDetails}
+                  />
                 ))}
               </div>
             ) : (
@@ -977,26 +1002,16 @@ export default function HomePage() {
       <LabTestOverlay isOpen={showLabTestOverlay} onClose={() => setShowLabTestOverlay(false)} />
       <CartOverlay />
 
-      <CartAddedModal />
-
-      <Dialog open={sessionExpired} onOpenChange={(open) => !open}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-right">انتهت مدة تسجيل الدخول</DialogTitle>
-          </DialogHeader>
-          <div className="text-right text-gray-600">لقد انتهت مدة جلستك. يرجى إعادة تسجيل الدخول للمتابعة.</div>
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                router.push("/?reason=expired&redirect=")
-              }}
-              className="ml-auto"
-            >
-              موافق
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Product Details Modal */}
+      <ProductDetailsModal
+        product={selectedProduct}
+        open={showProductModal}
+        onClose={() => {
+          setShowProductModal(false)
+          setSelectedProduct(null)
+        }}
+        onAddToCart={handleAddToCart}
+      />
     </div>
   )
 }

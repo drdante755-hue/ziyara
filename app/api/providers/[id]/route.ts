@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import dbConnect from "@/lib/mongodb"
 import Provider from "@/models/Provider"
+import Clinic from "@/models/Clinic"
+import MedicalCenter from "@/models/MedicalCenter"
 
 // GET - جلب طبيب معين
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +14,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!provider) {
       return NextResponse.json({ success: false, error: "الطبيب غير موجود" }, { status: 404 })
+    }
+
+    const clinics = []
+    const medicalCenters = []
+
+    if ((provider as any).workingAt && (provider as any).workingAt.length > 0) {
+      for (const workplace of (provider as any).workingAt) {
+        if (workplace.type === "clinic") {
+          const clinic = await Clinic.findById(workplace.id).lean()
+          if (clinic) {
+            clinics.push({
+              id: (clinic as any)._id.toString(),
+              name: (clinic as any).name,
+              nameAr: (clinic as any).nameAr,
+              address: (clinic as any).address,
+              addressAr: (clinic as any).addressAr,
+              phone: (clinic as any).phone,
+              image: (clinic as any).image,
+            })
+          }
+        } else if (workplace.type === "medicalCenter") {
+          const center = await MedicalCenter.findById(workplace.id).lean()
+          if (center) {
+            medicalCenters.push({
+              id: (center as any)._id.toString(),
+              name: (center as any).name,
+              nameAr: (center as any).nameAr,
+              address: (center as any).address,
+              addressAr: (center as any).addressAr,
+              phone: (center as any).phone,
+              image: (center as any).image,
+            })
+          }
+        }
+      }
     }
 
     return NextResponse.json({
@@ -38,6 +75,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         consultationFee: (provider as any).consultationFee,
         followUpFee: (provider as any).followUpFee,
         workingAt: (provider as any).workingAt,
+        clinics,
+        medicalCenters,
         rating: (provider as any).rating,
         reviewsCount: (provider as any).reviewsCount,
         totalPatients: (provider as any).totalPatients,
@@ -48,6 +87,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         homeVisitFee: (provider as any).homeVisitFee,
         availableForOnline: (provider as any).availableForOnline,
         onlineConsultationFee: (provider as any).onlineConsultationFee,
+        clinicId: (provider as any).clinicId,
+        medicalCenterId: (provider as any).medicalCenterId,
+        availability: (provider as any).availability,
       },
     })
   } catch (error) {

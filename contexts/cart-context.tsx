@@ -22,9 +22,6 @@ interface CartContextType {
   getCartCount: () => number
   isCartOpen: boolean
   setIsCartOpen: (open: boolean) => void
-  lastAddedItem: CartItem | null
-  showAddedModal: boolean
-  setShowAddedModal: (show: boolean) => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -32,8 +29,6 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null)
-  const [showAddedModal, setShowAddedModal] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
 
   // Load cart from localStorage on mount
@@ -64,15 +59,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { ...product, quantity: 1 }]
     })
-
-    // Show confirmation modal
-    setLastAddedItem({ ...product, quantity: 1 })
-    setShowAddedModal(true)
-
-    // Auto-hide modal after 3 seconds
-    setTimeout(() => {
-      setShowAddedModal(false)
-    }, 3000)
   }
 
   const removeFromCart = (id: string) => {
@@ -111,9 +97,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         getCartCount,
         isCartOpen,
         setIsCartOpen,
-        lastAddedItem,
-        showAddedModal,
-        setShowAddedModal,
       }}
     >
       {children}

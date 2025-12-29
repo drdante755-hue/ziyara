@@ -42,6 +42,8 @@ export interface IClinic extends Document {
   name: string
   nameAr: string
   slug: string
+  clinicType: "medical_center" | "private_clinic"
+  medicalCenter?: Schema.Types.ObjectId
   description?: string
   descriptionAr?: string
   address: string
@@ -61,6 +63,12 @@ export interface IClinic extends Document {
   reviewsCount: number
   bookingMethods: IBookingMethod[]
   bookingPolicies: IBookingPolicy
+  // Added fields for scheduling
+  slotDuration?: number
+  startDate?: string
+  endDate?: string
+  defaultStartTime?: string
+  defaultEndTime?: string
 }
 
 const BookingMethodSchema = new Schema<IBookingMethod>(
@@ -125,6 +133,19 @@ const ClinicSchema = new Schema<IClinic>(
     nameAr: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
 
+    clinicType: {
+      type: String,
+      enum: ["medical_center", "private_clinic"],
+      default: "medical_center",
+      required: true,
+    },
+
+    medicalCenter: {
+      type: Schema.Types.ObjectId,
+      ref: "MedicalCenter",
+      required: false,
+    },
+
     description: String,
     descriptionAr: String,
 
@@ -162,6 +183,11 @@ const ClinicSchema = new Schema<IClinic>(
       type: BookingPolicySchema,
       default: () => ({}),
     },
+    slotDuration: { type: Number },
+    startDate: { type: String },
+    endDate: { type: String },
+    defaultStartTime: { type: String },
+    defaultEndTime: { type: String },
   },
   { timestamps: true },
 )

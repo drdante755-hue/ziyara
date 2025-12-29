@@ -27,9 +27,9 @@ export interface IProvider extends Document {
   consultationFee: number
   followUpFee?: number
   clinicId?: mongoose.Types.ObjectId
-  hospitalId?: mongoose.Types.ObjectId
+  medicalCenterId?: mongoose.Types.ObjectId
   workingAt: {
-    type: "clinic" | "hospital"
+    type: "clinic" | "medicalCenter"
     id: mongoose.Types.ObjectId
     name: string
   }[]
@@ -43,6 +43,31 @@ export interface IProvider extends Document {
   homeVisitFee?: number
   availableForOnline: boolean
   onlineConsultationFee?: number
+  availability?: {
+    startDate?: string
+    endDate?: string
+    startTime?: string
+    endTime?: string
+    days?: string[]
+    perDay?: Record<string, { startTime?: string; endTime?: string; enabled?: boolean }>
+    defaultScheduleEnabled?: boolean
+    defaultStartTime?: string
+    defaultEndTime?: string
+    slotDuration?: number
+    clinicCustomDays?: Record<string, { startTime?: string; endTime?: string; enabled?: boolean; isClosed?: boolean }>
+    medicalCenterCustomDays?: Record<
+      string,
+      { startTime?: string; endTime?: string; enabled?: boolean; isClosed?: boolean }
+    >
+    clinicStartTime?: string
+    clinicEndTime?: string
+    medicalCenterStartTime?: string
+    medicalCenterEndTime?: string
+    workingDays?: string[]
+  }
+  // reception settings: whether this doctor accepts unlimited bookings or limited per day
+  receptionType?: "open" | "limited"
+  receptionCapacity?: number | null
   createdAt?: Date
   updatedAt?: Date
 }
@@ -75,10 +100,10 @@ const ProviderSchema = new Schema<IProvider>(
     consultationFee: { type: Number, required: true, min: 0 },
     followUpFee: { type: Number, min: 0 },
     clinicId: { type: Schema.Types.ObjectId, ref: "Clinic" },
-    hospitalId: { type: Schema.Types.ObjectId, ref: "Hospital" },
+    medicalCenterId: { type: Schema.Types.ObjectId, ref: "MedicalCenter" },
     workingAt: [
       {
-        type: { type: String, enum: ["clinic", "hospital"], required: true },
+        type: { type: String, enum: ["clinic", "medicalCenter"], required: true },
         id: { type: Schema.Types.ObjectId, required: true },
         name: { type: String, required: true },
       },
@@ -93,6 +118,13 @@ const ProviderSchema = new Schema<IProvider>(
     homeVisitFee: { type: Number, min: 0 },
     availableForOnline: { type: Boolean, default: false },
     onlineConsultationFee: { type: Number, min: 0 },
+    availability: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    // reception config: open (unlimited) or limited with a capacity per day
+    receptionType: { type: String, enum: ["open", "limited"], default: "open" },
+    receptionCapacity: { type: Number, default: null },
   },
   { timestamps: true },
 )
@@ -101,7 +133,7 @@ ProviderSchema.index({ name: "text", nameAr: "text", specialty: "text", specialt
 ProviderSchema.index({ slug: 1 })
 ProviderSchema.index({ specialty: 1 })
 ProviderSchema.index({ clinicId: 1 })
-ProviderSchema.index({ hospitalId: 1 })
+ProviderSchema.index({ medicalCenterId: 1 })
 ProviderSchema.index({ isActive: 1 })
 ProviderSchema.index({ isFeatured: 1 })
 ProviderSchema.index({ rating: -1 })

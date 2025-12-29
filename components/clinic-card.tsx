@@ -3,8 +3,8 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Star, MapPin, Shield, Eye } from "lucide-react"
-import { useState } from "react"
+import { Star, MapPin, Shield, Eye, Clock } from "lucide-react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 
 interface Clinic {
@@ -30,6 +30,100 @@ interface ClinicCardProps {
 
 export default function ClinicCard({ clinic }: ClinicCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [timeSnippet, setTimeSnippet] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    const fetchProvider = async () => {
+      try {
+        const res = await fetch(`/api/providers?clinicId=${clinic.id}&limit=1`)
+        const data = await res.json()
+        const provider = data?.providers?.[0]
+        if (!provider) return
+
+        const availability = provider.availability || {}
+        const weekOrder = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
+        const engToAr: Record<string, string> = { sat: "السبت", sun: "الأحد", mon: "الاثنين", tue: "الثلاثاء", wed: "الأربعاء", thu: "الخميس", fri: "الجمعة" }
+        const mapDay = (k: string) => {
+          if (!k) return ""
+          const low = String(k).toLowerCase()
+          if (engToAr[low]) return engToAr[low]
+          if (weekOrder.includes(k)) return k
+          if (low.startsWith("sat")) return "السبت"
+          if (low.startsWith("sun")) return "الأحد"
+          if (low.startsWith("mon")) return "الاثنين"
+          if (low.startsWith("tue")) return "الثلاثاء"
+          if (low.startsWith("wed")) return "الأربعاء"
+          if (low.startsWith("thu")) return "الخميس"
+          if (low.startsWith("fri")) return "الجمعة"
+          return k
+        }
+
+        // find first open day from perDay, workingHours, workingDays or default
+        let firstDay: string | null = null
+        let from = availability.defaultStartTime || availability.defaultStart || availability.startTime || ""
+        let to = availability.defaultEndTime || availability.defaultEnd || availability.endTime || ""
+
+        if (availability.perDay && typeof availability.perDay === "object") {
+          const keys = Object.keys(availability.perDay)
+          for (const k of weekOrder) {
+            const found = keys.find((x) => mapDay(x) === k || x === k)
+            if (found) {
+              const d = availability.perDay[found]
+              const f = d.startTime || d.start || d.from || availability.defaultStartTime
+              const t = d.endTime || d.end || d.to || availability.defaultEndTime
+              if (f || t) {
+                firstDay = k
+                from = f || from
+                to = t || to
+                break
+              }
+            }
+          }
+        }
+
+        if (!firstDay && Array.isArray(availability.workingHours) && availability.workingHours.length > 0) {
+          for (const wh of availability.workingHours) {
+            const dayName = mapDay(wh.day || wh.dayName || wh.dayAr || "")
+            if (dayName && (wh.from || wh.openTime || wh.startTime)) {
+              firstDay = dayName
+              from = wh.from || wh.openTime || wh.startTime || from
+              to = wh.to || wh.closeTime || wh.endTime || to
+              break
+            }
+          }
+        }
+
+        if (!firstDay && Array.isArray(availability.workingDays) && availability.workingDays.length > 0) {
+          const mapped = availability.workingDays.map(mapDay)
+          firstDay = mapped.find((d: any) => weekOrder.includes(d)) || null
+        }
+
+        if (!firstDay && provider.schedules && Array.isArray(provider.schedules) && provider.schedules.length > 0) {
+          const s = provider.schedules[0]
+          firstDay = mapDay(s.day) || null
+          from = s.from || s.startTime || from
+          to = s.to || s.endTime || to
+        }
+
+        if (!firstDay && (!from && !to)) {
+          // nothing meaningful
+          if (mounted) setTimeSnippet(null)
+          return
+        }
+
+        const snippet = `${firstDay || "مواعيد"}${from || to ? ` · ${from || ""}${from && to ? " - " : ""}${to || ""}` : ""}`
+        if (mounted) setTimeSnippet(snippet)
+      } catch (err) {
+        console.error("Error fetching provider for clinic card:", err)
+      }
+    }
+
+    fetchProvider()
+    return () => {
+      mounted = false
+    }
+  }, [clinic.id])
 
   return (
     <Card
@@ -42,7 +136,7 @@ export default function ClinicCard({ clinic }: ClinicCardProps) {
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
           <img
             src={clinic.images?.[0] || `/placeholder.svg?height=200&width=300&query=medical clinic interior`}
-            alt={clinic.nameAr}
+            alt={clinic.nameAr || clinic.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
 
@@ -65,11 +159,11 @@ export default function ClinicCard({ clinic }: ClinicCardProps) {
           </div>
 
           {/* Logo */}
-          {clinic.logo && (
+              {clinic.logo && (
             <div className="absolute top-2 left-2 w-10 h-10 rounded-lg bg-white shadow-md overflow-hidden z-10">
               <img
                 src={clinic.logo || "/placeholder.svg"}
-                alt={clinic.nameAr}
+                  alt={clinic.nameAr || clinic.name}
                 className="w-full h-full object-contain p-1"
               />
             </div>
@@ -77,7 +171,7 @@ export default function ClinicCard({ clinic }: ClinicCardProps) {
 
           {/* Info on Image */}
           <div className="absolute bottom-2 left-2 right-2 z-10">
-            <h3 className="font-bold text-white text-base line-clamp-1 drop-shadow-md">{clinic.nameAr}</h3>
+            <h3 className="font-bold text-white text-base line-clamp-1 drop-shadow-md">{clinic.nameAr || clinic.name}</h3>
             <div className="flex items-center gap-1 text-white/90 text-xs mt-1">
               <MapPin className="w-3 h-3" />
               <span className="line-clamp-1">
@@ -132,6 +226,13 @@ export default function ClinicCard({ clinic }: ClinicCardProps) {
             </Badge>
           )}
         </div>
+
+        {timeSnippet && (
+          <div className="mb-3 flex items-center gap-2 text-sm text-gray-600">
+            <Clock className="w-4 h-4 text-emerald-600" />
+            <span className="text-sm">{timeSnippet}</span>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2">

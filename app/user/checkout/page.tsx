@@ -59,6 +59,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderNumber, setOrderNumber] = useState("")
+  const [paidAmount, setPaidAmount] = useState(0)
 
   const [discountCode, setDiscountCode] = useState("")
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null)
@@ -325,6 +326,7 @@ export default function CheckoutPage() {
 
       clearCart()
       setOrderNumber(data.order.orderNumber)
+      setPaidAmount(data.order.total)
       setOrderPlaced(true)
 
       if (paymentMethod === "wallet") {
@@ -360,7 +362,7 @@ export default function CheckoutPage() {
               <p>
                 رقم الطلب: <span className="font-mono font-bold text-gray-700">{orderNumber}</span>
               </p>
-              <p>المبلغ المدفوع: {total.toFixed(2)} ج.م</p>
+              <p>المبلغ المدفوع: {paidAmount.toFixed(2)} ج.م</p>
             </div>
 
             <Link href="/user/home" passHref className="w-full">

@@ -124,7 +124,7 @@ export default function DoctorCard({ doctor }: DoctorCardProps) {
             <span className="text-base xs:text-lg font-bold text-emerald-600">{doctor.consultationFee}</span>
             <span className="text-[10px] xs:text-xs text-gray-500 mr-1">ج.م / الكشف</span>
           </div>
-          <Link href={`/user/doctors/${doctor.id}`}>
+          <Link href={`/user/clinics`}>
             <Button
               size="sm"
               className="rounded-lg text-xs xs:text-sm bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 xs:px-6 min-h-[44px] touch-manipulation"

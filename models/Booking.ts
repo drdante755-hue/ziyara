@@ -1,4 +1,4 @@
-import mongoose, { Document, Model, Schema } from "mongoose"
+import mongoose, { type Document, type Model, Schema } from "mongoose"
 
 // ================= Booking Interface =================
 
@@ -8,7 +8,7 @@ export interface IBooking extends Document {
   providerId: mongoose.Types.ObjectId
   slotId: mongoose.Types.ObjectId
   clinicId?: mongoose.Types.ObjectId
-  hospitalId?: mongoose.Types.ObjectId
+  medicalCenterId?: mongoose.Types.ObjectId
 
   patientName: string
   patientPhone: string
@@ -20,7 +20,7 @@ export interface IBooking extends Document {
   startTime: string
   endTime: string
 
-  type: "clinic" | "hospital" | "online" | "home"
+  type: "clinic" | "medical-center" | "online" | "home"
   address?: string
   symptoms?: string
   notes?: string
@@ -61,7 +61,7 @@ const BookingSchema = new Schema<IBooking>(
     slotId: { type: Schema.Types.ObjectId, ref: "AvailabilitySlot", required: true },
 
     clinicId: { type: Schema.Types.ObjectId, ref: "Clinic" },
-    hospitalId: { type: Schema.Types.ObjectId, ref: "Hospital" },
+    medicalCenterId: { type: Schema.Types.ObjectId, ref: "MedicalCenter" },
 
     patientName: { type: String, required: true, trim: true },
     patientPhone: { type: String, required: true },
@@ -76,7 +76,7 @@ const BookingSchema = new Schema<IBooking>(
 
     type: {
       type: String,
-      enum: ["clinic", "hospital", "online", "home"],
+      enum: ["clinic", "medical-center", "online", "home"],
       required: true,
     },
 
@@ -119,7 +119,7 @@ const BookingSchema = new Schema<IBooking>(
 
     reminderSent: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 )
 
 // ================= Indexes =================
@@ -129,7 +129,7 @@ BookingSchema.index({ userId: 1 })
 BookingSchema.index({ providerId: 1 })
 BookingSchema.index({ slotId: 1 })
 BookingSchema.index({ clinicId: 1 })
-BookingSchema.index({ hospitalId: 1 })
+BookingSchema.index({ medicalCenterId: 1 })
 BookingSchema.index({ status: 1 })
 BookingSchema.index({ paymentStatus: 1 })
 BookingSchema.index({ date: 1 })
@@ -152,7 +152,6 @@ BookingSchema.pre<IBooking>("save", function () {
 
 // ================= Model =================
 
-const Booking: Model<IBooking> =
-  mongoose.models.Booking || mongoose.model<IBooking>("Booking", BookingSchema)
+const Booking: Model<IBooking> = mongoose.models.Booking || mongoose.model<IBooking>("Booking", BookingSchema)
 
 export default Booking

@@ -6,6 +6,7 @@ import Order from "@/models/Order"
 import Discount from "@/models/Discount"
 import ActivityLog from "@/models/ActivityLog"
 import WalletTransaction from "@/models/WalletTransaction"
+import User from "@/models/User" // إضافة موديل المستخدم للتمكن من تحديث الرصيد
 
 // Generate unique order number
 function generateOrderNumber(): string {
@@ -54,12 +55,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (paidWithWallet && userId) {
-      const transactions = await WalletTransaction.find({ userId })
-      const balance = transactions.reduce((sum, t) => {
-        return t.type === "credit" ? sum + t.amount : sum - t.amount
-      }, 0)
+      const user = await User.findById(userId)
+      if (!user) {
+        return NextResponse.json({ error: "المستخدم غير موجود" }, { status: 404 })
+      }
 
-      if (balance < total) {
+      if (user.walletBalance < total) {
         return NextResponse.json({ error: "رصيد المحفظة غير كافٍ" }, { status: 400 })
       }
     }
@@ -107,6 +108,13 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Payment proof URL saved:", !!paymentProofUrl)
 
     if (paidWithWallet && userId) {
+      const user = await User.findById(userId)
+      if (user) {
+        user.walletBalance -= total
+        await user.save()
+        console.log(`[v0] Wallet balance updated for user ${userId}. New balance: ${user.walletBalance}`)
+      }
+
       await WalletTransaction.create({
         userId,
         type: "debit",

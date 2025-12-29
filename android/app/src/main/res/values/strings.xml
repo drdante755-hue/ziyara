@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ziyara</string>
+    <string name="title_activity_main">Ziyara</string>
+    <string name="package_name">com.Ziyara.app</string>
+    <string name="custom_url_scheme">ziyara</string>
+    <string name="default_web_client_id">1030537595001-rq254p3f246kvk2tsel56dkfe73hbegu.apps.googleusercontent.com</string>
+</resources>

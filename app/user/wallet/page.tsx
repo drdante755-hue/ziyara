@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2, Plus, Check, X, Eye, AlertCircle } from "lucide-react"
+import { Loader2, Plus, Check, X, Eye, AlertCircle, Wallet, CreditCard, ArrowUpRight, Clock, CheckCircle, XCircle } from "lucide-react"
 import type { IWalletRecharge } from "@/models/WalletRecharge"
 import type { IWalletTransaction } from "@/models/WalletTransaction"
 import { formatCurrency, getStatusBadgeColor, getStatusText, formatDate } from "@/lib/wallet-helpers"
@@ -28,6 +28,7 @@ export default function WalletPage() {
     fromPhoneNumber: "",
     amount: "",
     screenshot: null as File | null,
+    transferNumber: "",
   })
 
   const fetchData = useCallback(async () => {
@@ -82,7 +83,7 @@ export default function WalletPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!formData.fromPhoneNumber || !formData.amount || !formData.screenshot) {
+    if (!formData.fromPhoneNumber || !formData.amount || !formData.screenshot || !formData.transferNumber) {
       alert("جميع الحقول مطلوبة")
       return
     }
@@ -105,6 +106,7 @@ export default function WalletPage() {
             paymentMethod: "vodafone_cash",
             fromPhoneNumber: formData.fromPhoneNumber,
             amount: Number.parseFloat(formData.amount),
+            transferNumber: formData.transferNumber,
             screenshot: reader.result,
           }),
         })
@@ -113,7 +115,7 @@ export default function WalletPage() {
 
         if (data.recharge) {
           setRecharges([data.recharge, ...recharges])
-          setFormData({ fromPhoneNumber: "", amount: "", screenshot: null })
+          setFormData({ fromPhoneNumber: "", amount: "", screenshot: null, transferNumber: "" })
           setShowForm(false)
           alert("تم إنشاء الطلب بنجاح. سيتم مراجعته من قبل الإدارة")
         }
@@ -160,78 +162,113 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Wallet Balance Card */}
-        <Card className="bg-gradient-to-r from-emerald-500 to-teal-600 border-0">
-          <CardContent className="pt-6">
-            <div className="text-white">
-              <p className="text-sm opacity-90 mb-2">رصيد المحفظة الحالي</p>
-              <h1 className="text-4xl font-bold mb-4">EG {walletBalance.toFixed(2)}</h1>
-              <Button onClick={() => setShowForm(!showForm)} className="bg-white text-emerald-600 hover:bg-gray-100">
-                <Plus className="w-4 h-4 ml-2" />
-                شحن المحفظة
-              </Button>
+    <div dir="rtl" className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-md mx-auto space-y-5">
+        {/* Wallet Balance Card - prominent */}
+        <Card className="rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white px-4 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-50 text-emerald-600 rounded-lg p-3">
+                  <Wallet className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">رصيد المحفظة</p>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-2xl font-extrabold leading-none text-gray-900">{formatCurrency(walletBalance)}</span>
+                    <span className="text-sm text-gray-400">رصيد متاح</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col items-stretch gap-2">
+                <Button onClick={() => setShowForm(true)} className="bg-emerald-600 text-white py-2 px-4 rounded-full shadow-sm hover:shadow-md">
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm font-medium">شحن المحفظة</span>
+                  </div>
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/user/wallet/transactions')} className="py-2 px-4 rounded-full">
+                  <div className="flex items-center gap-2 text-sm">
+                    <CreditCard className="w-4 h-4" />
+                    التاريخ
+                  </div>
+                </Button>
+              </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        {/* Recharge Form */}
+        {/* Recharge Form - compact sheet-like */}
         {showForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>طلب شحن محفظة جديد</CardTitle>
-            </CardHeader>
+          <Card className="rounded-2xl shadow-sm">
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium mb-2">رقم هاتف Vodafone</label>
+                  <label className="block text-xs font-medium mb-1 text-gray-700">رقم الهاتف</label>
                   <input
                     type="tel"
                     value={formData.fromPhoneNumber}
                     onChange={(e) => setFormData({ ...formData, fromPhoneNumber: e.target.value })}
                     placeholder="201234567890"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">المبلغ (جنيه مصري)</label>
+                  <label className="block text-xs font-medium mb-1 text-gray-700">المبلغ (جنيه)</label>
                   <input
                     type="number"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     placeholder="100"
                     min="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">صورة الإيصال</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setFormData({ ...formData, screenshot: e.target.files?.[0] || null })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    required
-                  />
+                  <label className="block text-xs font-medium mb-1 text-gray-700">رقم التحويل</label>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={formData.transferNumber}
+                      readOnly
+                      placeholder="أضف رقم التحويل"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm"
+                    />
+                    {!formData.transferNumber && (
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const val = window.prompt("أدخل رقم التحويل:")
+                          if (val) setFormData({ ...formData, transferNumber: val })
+                        }}
+                        className="px-3 py-2"
+                      >
+                        إدخال
+                      </Button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-700">صورة الإيصال</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setFormData({ ...formData, screenshot: e.target.files?.[0] || null })}
+                      className="w-full text-sm"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={formLoading} className="bg-emerald-600 hover:bg-emerald-700">
-                    {formLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                        جاري الإرسال...
-                      </>
-                    ) : (
-                      "إرسال الطلب"
-                    )}
+                  <Button type="submit" disabled={formLoading} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg">
+                    {formLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'إرسال الطلب'}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="py-2 px-3">
                     إلغاء
                   </Button>
                 </div>
@@ -240,137 +277,98 @@ export default function WalletPage() {
           </Card>
         )}
 
-        {/* Recharge Requests */}
-        <Card>
-          <CardHeader>
-            <CardTitle>طلبات الشحن</CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Top-up Requests - compact list */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">طلبات الشحن</h3>
+          <div className="space-y-2">
             {recharges.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">لا توجد طلبات شحن حتى الآن</p>
+              <div className="text-center text-gray-400 py-6">لا توجد طلبات</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-gray-200">
-                    <tr>
-                      <th className="text-right py-3 px-4 font-medium">المبلغ</th>
-                      <th className="text-right py-3 px-4 font-medium">رقم الهاتف</th>
-                      <th className="text-right py-3 px-4 font-medium">الحالة</th>
-                      <th className="text-right py-3 px-4 font-medium">التاريخ</th>
-                      <th className="text-right py-3 px-4 font-medium">الإجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recharges.map((recharge) => (
-                      <tr key={recharge._id as unknown as string} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">{formatCurrency(recharge.amount)}</td>
-                        <td className="py-3 px-4">{recharge.fromPhoneNumber}</td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(recharge.status)}`}
-                          >
-                            {getStatusText(recharge.status)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-gray-500 text-sm">{formatDate(recharge.createdAt!)}</td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => setSelectedRecharge(recharge)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Transactions History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>سجل المعاملات</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {transactions.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">لا توجد معاملات حتى الآن</p>
-            ) : (
-              <div className="space-y-2">
-                {transactions.map((transaction) => (
-                  <div
-                    key={transaction._id as unknown as string}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === "credit" ? "bg-green-100" : "bg-red-100"}`}
-                      >
-                        {transaction.type === "credit" ? (
-                          <Check className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <X className="w-5 h-5 text-red-600" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{transaction.description}</p>
-                        <p className="text-xs text-gray-500">{formatDate(transaction.createdAt!)}</p>
-                      </div>
+              recharges.map((r) => (
+                <div key={r._id as unknown as string} className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-md ${getStatusBadgeColor(r.status).includes('green') ? 'bg-green-50 text-green-600' : getStatusBadgeColor(r.status).includes('red') ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}`}>
+                      {r.status === 'approved' ? <CheckCircle className="w-5 h-5" /> : r.status === 'rejected' ? <XCircle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
                     </div>
-                    <p className={`font-bold ${transaction.type === "credit" ? "text-green-600" : "text-red-600"}`}>
-                      {transaction.type === "credit" ? "+" : "-"}
-                      {formatCurrency(transaction.amount)}
-                    </p>
+                    <div>
+                      <p className="text-sm font-medium">{formatCurrency(r.amount)}</p>
+                      <p className="text-xs text-gray-400">{r.fromPhoneNumber} · {formatDate(r.createdAt!)}</p>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${getStatusBadgeColor(r.status).includes('green') ? 'text-green-600' : getStatusBadgeColor(r.status).includes('red') ? 'text-red-600' : 'text-yellow-600'}`}>{getStatusText(r.status)}</span>
+                    <button onClick={() => setSelectedRecharge(r)} className="p-2 rounded-md text-gray-500 hover:bg-gray-100">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* Transactions History - compact cards */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">سجل المعاملات</h3>
+          <div className="space-y-2">
+            {transactions.length === 0 ? (
+              <div className="text-center text-gray-400 py-6">لا توجد معاملات</div>
+            ) : (
+              transactions.map((t) => (
+                <div key={t._id as unknown as string} className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 flex items-center justify-center rounded-md ${t.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                      {t.type === 'credit' ? <ArrowUpRight className="w-5 h-5" /> : <X className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium truncate">{t.description}</p>
+                      <p className="text-xs text-gray-400">{t.orderId ? `#${t.orderId} · ` : ''}{formatDate(t.createdAt!)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-semibold ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>{t.type === 'credit' ? '+' : '-'}{formatCurrency(t.amount)}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Recharge Detail Modal */}
       {selectedRecharge && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full rounded-2xl">
             <CardHeader>
               <CardTitle>تفاصيل الطلب</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-500">المبلغ</p>
-                <p className="font-bold text-lg">{formatCurrency(selectedRecharge.amount)}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">المبلغ</p>
+                  <p className="font-bold text-lg">{formatCurrency(selectedRecharge.amount)}</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full ${getStatusBadgeColor(selectedRecharge.status)}`}>{getStatusText(selectedRecharge.status)}</div>
               </div>
+
               <div>
-                <p className="text-sm text-gray-500">رقم الهاتف</p>
+                <p className="text-xs text-gray-500">رقم الهاتف</p>
                 <p className="font-medium">{selectedRecharge.fromPhoneNumber}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">الحالة</p>
-                <p className={`font-medium px-3 py-1 rounded w-fit ${getStatusBadgeColor(selectedRecharge.status)}`}>
-                  {getStatusText(selectedRecharge.status)}
-                </p>
-              </div>
+
               {selectedRecharge.adminNote && (
                 <div>
-                  <p className="text-sm text-gray-500">ملاحظة الإدارة</p>
-                  <p className="text-red-600">{selectedRecharge.adminNote}</p>
+                  <p className="text-xs text-gray-500">ملاحظة الإدارة</p>
+                  <p className="text-sm text-red-600">{selectedRecharge.adminNote}</p>
                 </div>
               )}
+
               <div>
-                <p className="text-sm text-gray-500 mb-2">صورة الإيصال</p>
-                <img
-                  src={selectedRecharge.screenshot || "/placeholder.svg"}
-                  alt="Receipt"
-                  className="max-h-64 rounded-lg"
-                />
+                <p className="text-xs text-gray-500 mb-2">صورة الإيصال</p>
+                <img src={selectedRecharge.screenshot || "/placeholder.svg"} alt="Receipt" className="w-full rounded-lg object-contain max-h-64" />
               </div>
-              <Button onClick={() => setSelectedRecharge(null)} className="w-full">
-                إغلاق
-              </Button>
+
+              <Button onClick={() => setSelectedRecharge(null)} className="w-full">إغلاق</Button>
             </CardContent>
           </Card>
         </div>

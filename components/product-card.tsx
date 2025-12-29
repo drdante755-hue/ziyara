@@ -29,12 +29,13 @@ interface Product {
 interface ProductCardProps {
   product: Product
   onAddToCart?: (product: Product) => void
+  onViewDetails?: (product: Product) => void
 }
 
-export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, onAddToCart, onViewDetails }: ProductCardProps) {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
-  const router = useRouter()
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -49,8 +50,11 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
     }
   }
 
-  const handleViewProduct = () => {
-    router.push(`/user/products/${product.category}?product=${product.id}`)
+  const handleViewProduct = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (onViewDetails) {
+      onViewDetails(product)
+    }
   }
 
   const discountPercentage = product.discount || 0

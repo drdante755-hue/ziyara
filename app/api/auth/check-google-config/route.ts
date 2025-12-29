@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const googleClientId = process.env.GOOGLE_CLIENT_ID ?? "";
-  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET ?? "";
-  const mongodbUri = process.env.MONGODB_URI ?? "";
-  const nextAuthSecret = process.env.NEXTAUTH_SECRET ?? "";
-  const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
+  const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  const mongodbUri = process.env.MONGODB_URI || "";
+  const nextAuthSecret = process.env.NEXTAUTH_SECRET || "";
+  const nextAuthUrl = process.env.NEXTAUTH_URL || "";
 
-  /* ---------- Google OAuth ---------- */
+  // --- Google Checks ---
   const googleMissing = !googleClientId || !googleClientSecret;
-
   const googlePlaceholder =
     googleClientId.includes("your-") ||
     googleClientSecret.includes("your-") ||
@@ -18,64 +17,57 @@ export async function GET() {
 
   const googleConfigured = !googleMissing && !googlePlaceholder;
 
-  /* ---------- MongoDB ---------- */
-  const mongodbConfigured = Boolean(mongodbUri);
+  // --- MongoDB ---
+  const mongodbConfigured = !!mongodbUri;
 
-  /* ---------- NextAuth ---------- */
-  const nextAuthSecretConfigured = Boolean(nextAuthSecret);
+  // --- NextAuth Secret ---
+  const nextAuthConfigured = !!nextAuthSecret;
 
-  // NEXTAUTH_URL لازم يكون https فقط (deep link مش مطلوب هنا)
-  const nextAuthUrlConfigured =
-    nextAuthUrl.startsWith("http://") ||
-    nextAuthUrl.startsWith("https://");
+  // --- NextAuth URL ---
+  const nextAuthUrlConfigured = nextAuthUrl.length > 0;
 
-  /* ---------- Overall ---------- */
   const allConfigured =
     googleConfigured &&
     mongodbConfigured &&
-    nextAuthSecretConfigured &&
+    nextAuthConfigured &&
     nextAuthUrlConfigured;
 
   return NextResponse.json(
     {
       google: {
-        clientIdFound: Boolean(googleClientId),
-        clientSecretFound: Boolean(googleClientSecret),
+        clientIdFound: !!googleClientId,
+        clientSecretFound: !!googleClientSecret,
         placeholder: googlePlaceholder,
         configured: googleConfigured,
         message: googleMissing
-          ? "❌ Google OAuth غير مكتمل — أضف GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET"
+          ? "❌ Google OAuth غير مكتمل - يجب إضافة GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET"
           : googlePlaceholder
-          ? "⚠️ قيم Google OAuth placeholders — استبدلها بالقيم الحقيقية"
-          : "✅ Google OAuth مضبوط بشكل صحيح",
+          ? "⚠️ القيم الحالية placeholders — يجب استبدالها بالقيم الحقيقية من Google Cloud"
+          : "✅ Google OAuth معد بشكل صحيح",
       },
 
       mongodb: {
         configured: mongodbConfigured,
         message: mongodbConfigured
-          ? "✅ MongoDB متصل"
+          ? "✅ اتصال MongoDB جاهز"
           : "❌ MONGODB_URI غير موجود",
       },
 
       nextauth: {
-        secretConfigured: nextAuthSecretConfigured,
+        secretConfigured: nextAuthConfigured,
         urlConfigured: nextAuthUrlConfigured,
         url: nextAuthUrl || "غير محدد",
-        message: !nextAuthSecretConfigured
-          ? "❌ NEXTAUTH_SECRET غير موجود"
+        message: !nextAuthConfigured
+          ? "❌ NEXTAUTH_SECRET غير موجود — مطلوب لتوقيع التوكنات"
           : !nextAuthUrlConfigured
-          ? "❌ NEXTAUTH_URL يجب أن يكون http أو https"
+          ? "⚠️ NEXTAUTH_URL مفقود — قد يسبب مشاكل مع Google OAuth"
           : "✅ NextAuth مضبوط بشكل صحيح",
       },
 
-      // note removed: deep-link handling is not supported here
-
       allConfigured,
+
       status: allConfigured ? "success" : "error",
     },
-    {
-      // ❗ لا نرجع 500 إلا لو فعليًا فيه حاجة ناقصة
-      status: allConfigured ? 200 : 200,
-    }
+    { status: allConfigured ? 200 : 500 }
   );
 }

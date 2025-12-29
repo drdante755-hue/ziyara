@@ -2,11 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import dbConnect from "@/lib/mongodb"
 import { HomeAnalysisRequest } from "@/models/HomeAnalysis"
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect()
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
 
     if (!id) {
@@ -30,11 +30,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect()
 
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ success: false, error: "معرف الطلب مطلوب" }, { status: 400 })

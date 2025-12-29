@@ -6,7 +6,7 @@ import Review from "@/models/Review"
 import Booking from "@/models/Booking"
 import Provider from "@/models/Provider"
 import Clinic from "@/models/Clinic"
-import Hospital from "@/models/Hospital"
+import MedicalCenter from "@/models/MedicalCenter"
 import User from "@/models/User"
 
 // GET - جلب التقييمات
@@ -19,17 +19,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const providerId = searchParams.get("providerId")
     const clinicId = searchParams.get("clinicId")
-    const hospitalId = searchParams.get("hospitalId")
+    const medicalCenterId = searchParams.get("medicalCenterId")
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const page = Number.parseInt(searchParams.get("page") || "1")
 
-    console.log("[v0] Query params:", { providerId, clinicId, hospitalId, limit, page })
+    console.log("[v0] Query params:", { providerId, clinicId, medicalCenterId, limit, page })
 
     const query: any = { isVisible: true }
 
     if (providerId) query.providerId = providerId
     if (clinicId) query.clinicId = clinicId
-    if (hospitalId) query.hospitalId = hospitalId
+    if (medicalCenterId) query.medicalCenterId = medicalCenterId
 
     const skip = (page - 1) * limit
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "يمكن التقييم فقط بعد اكتمال الحجز" }, { status: 400 })
     }
 
-    // التحقق من دم وجود تقييم سابق
+    // التحقق من عدم وجود تقييم سابق
     const existingReview = await Review.findOne({ bookingId, userId: user._id, type })
     if (existingReview) {
       return NextResponse.json({ success: false, error: "تم التقييم مسبقاً" }, { status: 400 })
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       bookingId,
       providerId: type === "provider" ? booking.providerId : undefined,
       clinicId: type === "clinic" ? booking.clinicId : undefined,
-      hospitalId: type === "hospital" ? booking.hospitalId : undefined,
+      medicalCenterId: type === "medicalCenter" ? booking.medicalCenterId : undefined,
       type,
       rating,
       title,
@@ -145,13 +145,13 @@ export async function POST(request: NextRequest) {
         clinic.rating = Number((totalRatings / clinic.reviewsCount).toFixed(1))
         await clinic.save()
       }
-    } else if (type === "hospital" && booking.hospitalId) {
-      const hospital = await Hospital.findById(booking.hospitalId)
-      if (hospital) {
-        const totalRatings = hospital.reviewsCount * hospital.rating + rating
-        hospital.reviewsCount += 1
-        hospital.rating = Number((totalRatings / hospital.reviewsCount).toFixed(1))
-        await hospital.save()
+    } else if (type === "medicalCenter" && booking.medicalCenterId) {
+      const medicalCenter = await MedicalCenter.findById(booking.medicalCenterId)
+      if (medicalCenter) {
+        const totalRatings = medicalCenter.reviewsCount * medicalCenter.rating + rating
+        medicalCenter.reviewsCount += 1
+        medicalCenter.rating = Number((totalRatings / medicalCenter.reviewsCount).toFixed(1))
+        await medicalCenter.save()
       }
     }
 

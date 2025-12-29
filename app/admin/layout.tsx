@@ -25,7 +25,6 @@ import {
   Hospital,
   UserRound,
   CalendarCheck,
-  FolderHeart,
 } from "lucide-react"
 
 const adminMenuItems = [
@@ -39,7 +38,6 @@ const adminMenuItems = [
   { name: "الممرضات", icon: Stethoscope, href: "/admin/nurses" },
   { name: "الاختبارات", icon: Microscope, href: "/admin/tests" },
   { name: "العيادات", icon: Building2, href: "/admin/clinics" },
-  { name: "المستشفيات", icon: Hospital, href: "/admin/hospitals" },
   { name: "الأطباء", icon: UserRound, href: "/admin/providers" },
   { name: "الحجوزات", icon: CalendarCheck, href: "/admin/bookings" },
   { name: "طلبات المحفظة", icon: Wallet, href: "/admin/wallet/recharge-requests" },

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const booking = await Booking.findById(id)
       .populate("providerId", "name nameAr specialty specialtyAr image phone")
       .populate("clinicId", "name nameAr address phone")
-      .populate("hospitalId", "name nameAr address phone")
+      .populate("medicalCenterId", "name nameAr address phone")
       .lean()
 
     if (!booking) {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         bookingNumber: (booking as any).bookingNumber,
         provider: (booking as any).providerId,
         clinic: (booking as any).clinicId,
-        hospital: (booking as any).hospitalId,
+        medicalCenter: (booking as any).medicalCenterId,
         patientName: (booking as any).patientName,
         patientPhone: (booking as any).patientPhone,
         patientEmail: (booking as any).patientEmail,
@@ -123,7 +123,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         booking.status = "completed"
         booking.completedAt = new Date()
 
-        // ��حديث حالة الموعد
+        // حديث حالة الموعد
         await AvailabilitySlot.findByIdAndUpdate(booking.slotId, {
           status: "completed",
         })

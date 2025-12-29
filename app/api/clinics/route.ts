@@ -13,37 +13,48 @@ export async function GET(request: NextRequest) {
     const specialty = searchParams.get("specialty")
     const search = searchParams.get("search")
     const featured = searchParams.get("featured")
+    const clinicType = searchParams.get("clinicType")
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const page = Number.parseInt(searchParams.get("page") || "1")
+    const active = searchParams.get("active")
 
-    const query: any = { isActive: true }
+    const query: any = {}
+
+    if (active === "true") {
+      query.isActive = true
+    }
 
     if (city) query.city = city
     if (area) query.area = area
     if (specialty) query.specialties = { $in: [specialty] }
     if (featured === "true") query.isFeatured = true
-
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { nameAr: { $regex: search, $options: "i" } },
-        { specialties: { $regex: search, $options: "i" } },
-        { address: { $regex: search, $options: "i" } },
-      ]
-    }
+    if (clinicType) query.clinicType = clinicType
 
     const skip = (page - 1) * limit
 
     const [clinics, total] = await Promise.all([
-      Clinic.find(query).sort({ isFeatured: -1, rating: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Clinic.find(query)
+        .populate("medicalCenter", "name nameAr")
+        .sort({ isFeatured: -1, rating: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Clinic.countDocuments(query),
     ])
 
     const transformedClinics = clinics.map((clinic: any) => ({
       id: clinic._id.toString(),
+      _id: clinic._id.toString(),
       name: clinic.name,
       nameAr: clinic.nameAr,
       slug: clinic.slug,
+      clinicType: clinic.clinicType,
+      medicalCenter: clinic.medicalCenter
+        ? {
+            _id: clinic.medicalCenter._id.toString(),
+            name: clinic.medicalCenter.name || clinic.medicalCenter.nameAr,
+          }
+        : null,
       description: clinic.description,
       descriptionAr: clinic.descriptionAr,
       address: clinic.address,
@@ -55,11 +66,17 @@ export async function GET(request: NextRequest) {
       logo: clinic.logo,
       specialties: clinic.specialties,
       workingHours: clinic.workingHours,
-      rating: clinic.rating,
-      reviewsCount: clinic.reviewsCount,
+      rating: clinic.rating || 0,
+      reviewsCount: clinic.reviewsCount || 0,
+      isActive: clinic.isActive,
       isFeatured: clinic.isFeatured,
       amenities: clinic.amenities,
       insuranceAccepted: clinic.insuranceAccepted,
+      slotDuration: clinic.slotDuration,
+      startDate: clinic.startDate,
+      endDate: clinic.endDate,
+      defaultStartTime: clinic.defaultStartTime,
+      defaultEndTime: clinic.defaultEndTime,
     }))
 
     return NextResponse.json({
@@ -87,9 +104,15 @@ export async function POST(request: NextRequest) {
     const {
       name,
       nameAr,
+      nameEn,
+      clinicType,
+      medicalCenter,
+      description,
+      descriptionAr,
       address,
       city,
       area,
+      governorate,
       phone,
       email,
       specialties,
@@ -98,9 +121,16 @@ export async function POST(request: NextRequest) {
       logo,
       amenities,
       insuranceAccepted,
+      isActive,
+      isFeatured,
+      slotDuration,
+      startDate,
+      endDate,
+      defaultStartTime,
+      defaultEndTime,
     } = body
 
-    if (!name || !nameAr || !address || !city || !area || !phone) {
+    if (!name || !nameAr || !address || !city || !phone) {
       return NextResponse.json({ success: false, error: "جميع الحقول المطلوبة يجب ملؤها" }, { status: 400 })
     }
 
@@ -113,6 +143,10 @@ export async function POST(request: NextRequest) {
       name,
       nameAr,
       slug: `${slug}-${Date.now()}`,
+      clinicType: clinicType || "medical_center",
+      medicalCenter: medicalCenter || undefined,
+      description,
+      descriptionAr,
       address,
       city,
       area,
@@ -124,10 +158,15 @@ export async function POST(request: NextRequest) {
       logo,
       amenities: amenities || [],
       insuranceAccepted: insuranceAccepted || [],
-      isActive: true,
-      isFeatured: false,
+      isActive: isActive ?? true,
+      isFeatured: isFeatured ?? false,
       rating: 0,
       reviewsCount: 0,
+      slotDuration: slotDuration || 30,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      defaultStartTime: defaultStartTime || "09:00",
+      defaultEndTime: defaultEndTime || "21:00",
     })
 
     return NextResponse.json({
@@ -137,6 +176,7 @@ export async function POST(request: NextRequest) {
         name: clinic.name,
         nameAr: clinic.nameAr,
         slug: clinic.slug,
+        clinicType: clinic.clinicType,
       },
     })
   } catch (error: any) {

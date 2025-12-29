@@ -459,7 +459,7 @@ export default function BookingDetailsPage({ params }: { params: Promise<{ id: s
             </DialogContent>
           </Dialog>
         ) : (
-          <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/user/doctors")}>
+          <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/user/clinics")}>
             احجز موعد جديد
           </Button>
         )}

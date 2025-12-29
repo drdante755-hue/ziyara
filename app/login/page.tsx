@@ -148,14 +148,14 @@ export default function LoginPage() {
   }, [session, router, hasRedirected])
 
   const handleGoogleSignIn = () => {
-  setIsGoogleLoading(true);
-  setError("");
+    setIsGoogleLoading(true)
+    setError("")
 
-  window.location.href =
-    "/api/auth/signin/google?callbackUrl=" +
-    encodeURIComponent("/auth/mobile-success");
-  };
-
+    // ✅ استخدام Web OAuth الرسمي من NextAuth
+    signIn("google", {
+      callbackUrl: "/auth/mobile-success",
+    }).finally(() => setIsGoogleLoading(false))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,24 +183,16 @@ export default function LoginPage() {
 
       if (res?.ok) {
         const newSession = await getSession()
-
         if (newSession?.user?.role) {
-          if (newSession.user.role === "admin") {
-            router.push("/admin/dashboard")
-          } else {
-            router.push("/user/home")
-          }
+          if (newSession.user.role === "admin") router.push("/admin/dashboard")
+          else router.push("/user/home")
         } else {
           setTimeout(async () => {
             const retrySession = await getSession()
             if (retrySession?.user?.role) {
-              if (retrySession.user.role === "admin") {
-                router.push("/admin/dashboard")
-              } else {
-                router.push("/user/home")
-              }
+              if (retrySession.user.role === "admin") router.push("/admin/dashboard")
+              else router.push("/user/home")
             } else {
-              console.warn("لم يتم العثور على role في session، التوجيه إلى الصفحة الرئيسية")
               router.push("/")
             }
           }, 300)
@@ -219,37 +211,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden flex items-center justify-center">
         <EnhancedFloatingMedicalIcons />
-
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-32 -right-32 w-64 h-64 bg-gradient-to-br from-emerald-400/30 to-teal-400/20 rounded-full blur-3xl animate-pulse-glow"></div>
-          <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-gradient-to-tr from-cyan-400/25 to-emerald-400/20 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-emerald-200/10 to-teal-200/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center justify-center space-y-6 p-8">
-          <div className="relative">
-            <div className="w-40 h-40 mx-auto relative animate-pulse">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/30 to-teal-400/30 rounded-full blur-xl"></div>
-              <Image
-                src="/images/Ziyara-logo.png"
-                alt="زيارة - منصة الرعاية الصحية"
-                width={160}
-                height={160}
-                className="object-contain w-full h-full relative z-10"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
-            <div className="space-y-1">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                جاري التحميل...
-              </h2>
-              <p className="text-sm text-emerald-600/80">يرجى الانتظار</p>
-            </div>
-          </div>
-        </div>
+        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
       </div>
     )
   }
@@ -257,35 +219,23 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden">
       <EnhancedFloatingMedicalIcons />
-
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-gradient-to-br from-emerald-400/30 to-teal-400/20 rounded-full blur-3xl animate-pulse-glow"></div>
-        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-gradient-to-tr from-cyan-400/25 to-emerald-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-emerald-200/10 to-teal-200/10 rounded-full blur-3xl"></div>
-      </div>
-
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4 lg:p-8">
-        <Card className="w-full max-w-md lg:max-w-lg card-enhanced">
+        <Card className="w-full max-w-md lg:max-w-lg">
           <CardHeader className="text-center space-y-6 pb-8 px-8 pt-8">
             <div className="relative">
-              <div className="w-40 h-40 mx-auto relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 rounded-full blur-xl"></div>
-                <Image
-                  src="/images/Ziyara-logo.png"
-                  alt="زيارة - منصة الرعاية الصحية"
-                  width={160}
-                  height={160}
-                  className="object-contain w-full h-full relative z-10"
-                />
-              </div>
+              <Image
+                src="/images/Ziyara-logo.png"
+                alt="زيارة - منصة الرعاية الصحية"
+                width={160}
+                height={160}
+                className="mx-auto"
+              />
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-center gap-2">
                 <Heart className="w-5 h-5 text-emerald-500" />
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                  زيارة
-                </h1>
+                <h1 className="text-3xl font-bold text-emerald-700">زيارة</h1>
                 <Stethoscope className="w-5 h-5 text-emerald-500" />
               </div>
               <p className="text-emerald-600 font-semibold">منصة الرعاية الصحية الذكية</p>
@@ -298,6 +248,7 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent className="space-y-6 px-8 pb-8">
+            {/* زر Google */}
             <Button
               type="button"
               variant="outline"
@@ -335,6 +286,7 @@ export default function LoginPage() {
               )}
             </Button>
 
+            {/* فصل بين الخيارات */}
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -344,6 +296,7 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* نموذج البريد/رقم الهاتف */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-3">
                 <Label htmlFor="emailOrPhone">البريد الإلكتروني أو رقم الهاتف</Label>
@@ -351,7 +304,6 @@ export default function LoginPage() {
                   <Input
                     id="emailOrPhone"
                     placeholder="example@email.com أو 01234567890"
-                    className="form-input pr-12"
                     required
                     value={emailOrPhone}
                     onChange={(e) => setEmailOrPhone(e.target.value)}
@@ -368,7 +320,6 @@ export default function LoginPage() {
                     id="password"
                     type="password"
                     placeholder="••••••••"
-                    className="form-input pr-12"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -378,33 +329,16 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {error && (
-                <div className="text-destructive text-sm font-medium text-center bg-destructive/10 p-4 rounded-xl border border-destructive/20">
-                  {error}
-                </div>
-              )}
+              {error && <p className="text-red-500 text-center">{error}</p>}
 
-              <Button type="submit" className="btn-primary" disabled={isLoading || isGoogleLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin ml-2" />
-                    <span>جاري تسجيل الدخول...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>تسجيل الدخول</span>
-                    <ArrowRight className="w-5 h-5 mr-2 group-hover:translate-x-1 transition-transform duration-300" />
-                  </>
-                )}
+              <Button type="submit" className="btn-primary w-full" disabled={isLoading || isGoogleLoading}>
+                {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
               </Button>
             </form>
 
             <div className="text-center text-sm text-muted-foreground pt-6 border-t border-border">
               ليس لديك حساب؟{" "}
-              <Link
-                href="/register"
-                className="text-primary hover:text-primary/80 font-semibold hover:underline transition-colors duration-200"
-              >
+              <Link href="/register" className="text-primary font-semibold hover:underline">
                 إنشاء حساب جديد
               </Link>
             </div>

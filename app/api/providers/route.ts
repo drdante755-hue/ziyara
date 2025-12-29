@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const specialty = searchParams.get("specialty")
     const clinicId = searchParams.get("clinicId")
-    const hospitalId = searchParams.get("hospitalId")
+    const medicalCenterId = searchParams.get("medicalCenterId")
     const gender = searchParams.get("gender")
     const search = searchParams.get("search")
     const featured = searchParams.get("featured")
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (specialty) query.specialty = specialty
     if (clinicId) query.clinicId = clinicId
-    if (hospitalId) query.hospitalId = hospitalId
+    if (medicalCenterId) query.medicalCenterId = medicalCenterId
     if (gender) query.gender = gender
     if (featured === "true") query.isFeatured = true
     if (availableForHomeVisit === "true") query.availableForHomeVisit = true
@@ -41,7 +41,13 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const [providers, total] = await Promise.all([
-      Provider.find(query).sort({ isFeatured: -1, rating: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Provider.find(query)
+        .populate("clinicId", "name nameAr")
+        .populate("medicalCenterId", "name nameAr")
+        .sort({ isFeatured: -1, rating: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Provider.countDocuments(query),
     ])
 
@@ -61,8 +67,10 @@ export async function GET(request: NextRequest) {
       // include contact and status fields so admin UI can display saved values
       phone: provider.phone,
       email: provider.email,
-      clinicId: provider.clinicId,
-      hospitalId: provider.hospitalId,
+      clinic: provider.clinicId,
+      medicalCenter: provider.medicalCenterId,
+      clinicId: provider.clinicId?._id?.toString() || provider.clinicId,
+      medicalCenterId: provider.medicalCenterId?._id?.toString() || provider.medicalCenterId,
       isActive: typeof provider.isActive === "boolean" ? provider.isActive : true,
       gender: provider.gender,
       languages: provider.languages,
@@ -80,6 +88,9 @@ export async function GET(request: NextRequest) {
       homeVisitFee: provider.homeVisitFee,
       availableForOnline: provider.availableForOnline,
       onlineConsultationFee: provider.onlineConsultationFee,
+      availability: provider.availability,
+      receptionType: provider.receptionType || "open",
+      receptionCapacity: typeof provider.receptionCapacity === "number" ? provider.receptionCapacity : null,
     }))
 
     return NextResponse.json({
@@ -124,16 +135,23 @@ export async function POST(request: NextRequest) {
       consultationFee,
       followUpFee,
       clinicId,
-      hospitalId,
+      medicalCenterId,
       workingAt,
       availableForHomeVisit,
       homeVisitFee,
       availableForOnline,
       onlineConsultationFee,
+      availability,
+      receptionType,
+      receptionCapacity,
     } = body
 
     if (!name || !nameAr || !title || !titleAr || !specialty || !specialtyAr || !gender || !consultationFee) {
       return NextResponse.json({ success: false, error: "جميع الحقول المطلوبة يجب ملؤها" }, { status: 400 })
+    }
+
+    if (receptionType === "limited" && (typeof receptionCapacity !== "number" || receptionCapacity <= 0)) {
+      return NextResponse.json({ success: false, error: "عند اختيار 'محدّد' يجب تحديد سعة استقبال صحيحة" }, { status: 400 })
     }
 
     const slug = `${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`
@@ -159,7 +177,7 @@ export async function POST(request: NextRequest) {
       consultationFee,
       followUpFee,
       clinicId,
-      hospitalId,
+      medicalCenterId,
       workingAt: workingAt || [],
       availableForHomeVisit: availableForHomeVisit || false,
       homeVisitFee,
@@ -171,6 +189,9 @@ export async function POST(request: NextRequest) {
       rating: 0,
       reviewsCount: 0,
       totalPatients: 0,
+      availability: availability || {},
+      receptionType: receptionType || "open",
+      receptionCapacity: receptionType === "limited" ? receptionCapacity : null,
     })
 
     return NextResponse.json({
