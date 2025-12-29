@@ -11,8 +11,10 @@
   "dependencies": {
     "@auth/core": "latest",
     "@capacitor/android": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
     "@hookform/resolvers": "^3.9.1",
     "@next-auth/mongodb-adapter": "^1.1.3",
     "@radix-ui/react-accordion": "latest",
