@@ -19,8 +19,6 @@ import {
 import FloatingMedicalIcons from "@/components/floating-medical-icons";
 import Image from "next/image";
 
-const splashLetters = ["A", "R", "A", "Y", "I", "Z"];
-
 export default function HomePage() {
   const [showSplash, setShowSplash] = useState(true);
   const { data: session, status } = useSession();
@@ -38,56 +36,8 @@ export default function HomePage() {
     // status/session change is enough
   }, [status, session]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Optionally: while auth status is loading you might want to keep splash or show a loader.
   // We let splash play for the configured duration; if user is logged in, the useEffect above will redirect.
-
-  if (showSplash) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 flex items-center justify-center overflow-hidden transition-colors duration-500">
-        <div className="relative">
-          {/* Animated Background */}
-          <div className="absolute inset-0 -m-20">
-            <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-400/20 rounded-full animate-pulse"></div>
-            <div className="absolute top-20 right-10 w-32 h-32 bg-teal-400/20 rounded-full animate-pulse delay-1000"></div>
-            <div className="absolute bottom-10 left-20 w-24 h-24 bg-cyan-400/20 rounded-full animate-pulse delay-500"></div>
-          </div>
-
-          {/* Falling Letters */}
-          <div className="flex space-x-4 space-x-reverse">
-            {splashLetters.map((letter, index) => (
-              <div
-                key={index}
-                className="text-8xl font-bold text-white animate-bounce"
-                style={{
-                  animationDelay: `${index * 0.2}s`,
-                  animationDuration: "2s",
-                  textShadow: "0 0 20px rgba(16, 185, 129, 0.5)",
-                }}
-              >
-                {letter}
-              </div>
-            ))}
-          </div>
-
-          {/* Loading Indicator */}
-          <div className="mt-12 text-center">
-            <div className="inline-flex items-center space-x-2 space-x-reverse text-white/80">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse delay-200"></div>
-              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse delay-400"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 relative overflow-hidden">
