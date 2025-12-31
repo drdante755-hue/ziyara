@@ -2,11 +2,14 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "main": "main.js",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start -p $PORT"
+    "start": "next start -p $PORT",
+    "electron": "electron .",
+    "build-electron": "next build && electron-builder"
   },
   "dependencies": {
     "@auth/core": "latest",
@@ -95,9 +98,32 @@
     "@types/nodemailer": "^7.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^26.3.1",
+    "electron-builder": "^24.7.0",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "ts-prune": "^0.10.3",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.yourcompany.ziyara",
+    "productName": "Ziyara Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "main.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }

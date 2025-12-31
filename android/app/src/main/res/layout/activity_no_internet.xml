@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="#FFFFFF"
+    android:background="@drawable/splash_gradient_background"
     android:padding="20dp">
 
     <!-- App Icon (Small Size) -->
@@ -21,9 +21,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="لا يوجد اتصال بالإنترنت"
-        android:textSize="20sp"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:textColor="#333333"
+        android:textColor="#FFFFFF"
         android:layout_marginBottom="10dp"/>
 
     <!-- Error Description -->
@@ -31,10 +31,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="يرجى التحقق من اتصالك بالشبكة والمحاولة مرة أخرى"
-        android:textSize="14sp"
-        android:textColor="#666666"
+        android:textSize="16sp"
+        android:textColor="#E0E0E0"
         android:gravity="center"
-        android:layout_marginBottom="30dp"/>
+        android:layout_marginBottom="40dp"/>
 
     <!-- Retry Button -->
     <Button
@@ -42,9 +42,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="إعادة المحاولة"
+        android:textColor="#065f46"
+        android:textStyle="bold"
         android:textSize="16sp"
-        android:paddingStart="30dp"
-        android:paddingEnd="30dp"
-        android:backgroundTint="@color/colorPrimary"/>
+        android:paddingStart="40dp"
+        android:paddingEnd="40dp"
+        android:backgroundTint="#FFFFFF"/>
 
 </LinearLayout>
