@@ -51,7 +51,7 @@ export default function HomePage() {
             <div className="relative">
               <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-56 xl:h-56 mx-auto relative">
                 <Image
-                  src="/images/Ziyara-logo.png"
+                  src="public/images/Ziyara-logo.png"
                   alt="Ziyara Logo"
                   fill
                   className="object-contain drop-shadow-2xl"
