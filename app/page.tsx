@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,6 @@ import FloatingMedicalIcons from "@/components/floating-medical-icons";
 import Image from "next/image";
 
 export default function HomePage() {
-  const [showSplash, setShowSplash] = useState(true);
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -32,29 +31,22 @@ export default function HomePage() {
     if (status === "authenticated" && session?.user.role === "admin") {
       router.push("/admin/dashboard");
     }
-    // don't include router in deps to avoid unnecessary effects in strict mode;
-    // status/session change is enough
   }, [status, session]);
-
-  // Optionally: while auth status is loading you might want to keep splash or show a loader.
-  // We let splash play for the configured duration; if user is logged in, the useEffect above will redirect.
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 relative overflow-hidden">
-      <div className="pt-6 px-4 flex justify-end"></div>
-      {/* Floating Medical Icons */}
       <FloatingMedicalIcons />
 
       {/* Background Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-20 -right-20 sm:-top-40 sm:-right-40 w-40 h-40 sm:w-80 sm:h-80 bg-gradient-to-br from-emerald-400/20 to-teal-400/20 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-20 -left-20 sm:-bottom-40 sm:-left-40 w-40 h-40 sm:w-80 sm:h-80 bg-gradient-to-tr from-cyan-400/20 to-blue-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-96 sm:h-96 bg-gradient-to-r from-emerald-300/10 to-teal-300/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-96 sm:h-96 bg-gradient-to-r from-emerald-300/10 to-teal-300/10 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
         <div className="max-w-xs sm:max-w-md lg:max-w-lg xl:max-w-xl w-full space-y-6 sm:space-y-8 text-center">
-          {/* Logo and Brand */}
+          {/* Logo */}
           <div className="space-y-4 sm:space-y-6">
             <div className="relative">
               <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-56 xl:h-56 mx-auto relative">
@@ -79,6 +71,7 @@ export default function HomePage() {
                   <Stethoscope className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-emerald-500" />
                 </span>
               </h1>
+
               <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed px-2">
                 منصة الرعاية الصحية الذكية
                 <br />
@@ -89,39 +82,31 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Features Grid */}
+          {/* Features */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-6 py-4 sm:py-6">
-            <div className="text-center space-y-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto">
-                <Clock className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-emerald-600" />
+            {[
+              { icon: Clock, text: "توصيل سريع", color: "emerald" },
+              { icon: Shield, text: "منتجات أصلية", color: "teal" },
+              { icon: Headphones, text: "دعم 24/7", color: "cyan" },
+            ].map((f, i) => (
+              <div key={i} className="text-center space-y-2">
+                <div
+                  className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-${f.color}-100 to-${f.color}-200 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto`}
+                >
+                  <f.icon className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-${f.color}-600`} />
+                </div>
+                <p className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">
+                  {f.text}
+                </p>
               </div>
-              <p className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">
-                توصيل سريع
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-teal-100 to-teal-200 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto">
-                <Shield className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-teal-600" />
-              </div>
-              <p className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">
-                منتجات أصلية
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto">
-                <Headphones className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-cyan-600" />
-              </div>
-              <p className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">
-                دعم 24/7
-              </p>
-            </div>
+            ))}
           </div>
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <div className="space-y-3 sm:space-y-4">
             <Link href="/register">
               <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl sm:rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transform hover:scale-[1.02] transition-all duration-300 group">
-                <span>إنشاء حساب جديد</span>
+                إنشاء حساب جديد
                 <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:translate-x-1 transition-transform duration-300" />
               </Button>
             </Link>
@@ -136,50 +121,37 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* Trust Indicators */}
-          <div className="pt-4 sm:pt-6 border-t border-gray-200/50">
-            <p className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3">
+          {/* Trust Indicators — FIXED */}
+          <div className="pt-6 relative">
+            {/* Gradient separator بدل border */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+            <p className="text-xs sm:text-sm text-gray-500 mb-3">
               موثوق من قبل أكثر من
             </p>
-            <div className="flex items-center justify-center space-x-4 sm:space-x-6 space-x-reverse">
-              <div className="text-center">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-emerald-600">
-                  50K+
+
+            <div className="flex items-center justify-center space-x-6 space-x-reverse">
+              {[
+                { num: "50K+", label: "عميل", color: "emerald" },
+                { num: "1000+", label: "منتج", color: "teal" },
+                { num: "24/7", label: "خدمة", color: "cyan" },
+              ].map((item, i) => (
+                <div key={i} className="text-center">
+                  <div className={`text-2xl font-bold text-${item.color}-600`}>
+                    {item.num}
+                  </div>
+                  <div className="text-xs text-gray-500">{item.label}</div>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500">عميل</div>
-              </div>
-              <div className="w-px h-6 sm:h-8 bg-gray-200"></div>
-              <div className="text-center">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-teal-600">
-                  1000+
-                </div>
-                <div className="text-xs sm:text-sm text-gray-500">منتج</div>
-              </div>
-              <div className="w-px h-6 sm:h-8 bg-gray-200"></div>
-              <div className="text-center">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-cyan-600">
-                  24/7
-                </div>
-                <div className="text-xs sm:text-sm text-gray-500">خدمة</div>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Additional Features for larger screens */}
+          {/* Extra */}
           <div className="hidden lg:block pt-6">
             <div className="grid grid-cols-3 gap-6 text-center">
-              <div className="space-y-2">
-                <Users className="w-8 h-8 text-emerald-600 mx-auto" />
-                <p className="text-sm text-gray-600">فريق طبي متخصص</p>
-              </div>
-              <div className="space-y-2">
-                <Package className="w-8 h-8 text-teal-600 mx-auto" />
-                <p className="text-sm text-gray-600">تغليف آمن ومحكم</p>
-              </div>
-              <div className="space-y-2">
-                <Sparkles className="w-8 h-8 text-cyan-600 mx-auto" />
-                <p className="text-sm text-gray-600">عروض وخصومات</p>
-              </div>
+              <Users className="w-8 h-8 text-emerald-600 mx-auto" />
+              <Package className="w-8 h-8 text-teal-600 mx-auto" />
+              <Sparkles className="w-8 h-8 text-cyan-600 mx-auto" />
             </div>
           </div>
         </div>
